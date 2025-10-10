@@ -1,57 +1,36 @@
 // src/screens/Faculty/UpdateAvailability.js
-import { useEffect, useState } from 'react';
-import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import api from '../../services/api';
+import { useState } from 'react';
+import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { sendLocalNotification } from '../../services/notification';
 
 export default function UpdateAvailability() {
   const [availability, setAvailability] = useState('present');
   const [bookings, setBookings] = useState([]);
-  const [rooms, setRooms] = useState([]);
+  const [selectedRoom, setSelectedRoom] = useState(null);
 
-  // Fetch classroom list
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await api.get('/rooms');
-        setRooms(res.data || []);
-      } catch (err) {
-        console.warn('API error (using fallback):', err.message || err);
-        // fallback rooms if backend not ready
-        setRooms([
-          { _id: 'R101', name: 'Classroom 101' },
-          { _id: 'R102', name: 'Classroom 102' },
-          { _id: 'Lab201', name: 'Lab 201' },
-          { _id: 'Lab202', name: 'Lab 202' },
-        ]);
-      }
-    })();
-  }, []);
+  const rooms = [
+    { id: 'R101', name: 'Classroom 101' },
+    { id: 'R102', name: 'Classroom 102' },
+    { id: 'Lab201', name: 'Lab 201' },
+    { id: 'Lab202', name: 'Lab 202' },
+  ];
 
   const handleAvailability = (status) => {
     setAvailability(status);
-    sendLocalNotification('Availability Updated', `You are marked as ${status}`);
+    sendLocalNotification('Faculty Availability Updated', `You are marked as ${status}`);
   };
 
-  const handleBookRoom = async (room) => {
-    try {
-      // call backend booking endpoint later
-      const booking = {
-        room,
-        time: new Date().toLocaleTimeString(),
-        status: 'pending',
-      };
-      setBookings([...bookings, booking]);
-      sendLocalNotification('Booking Requested', `Request for ${room.name} sent to admin`);
-    } catch (err) {
-      Alert.alert('Booking failed', err.message);
-    }
+  const handleBookRoom = (room) => {
+    const newBooking = { room, time: new Date().toLocaleTimeString(), status: 'pending' };
+    setBookings([...bookings, newBooking]);
+    setSelectedRoom(room);
+    sendLocalNotification('Booking Requested', `Your request for ${room.name} is pending admin approval.`);
   };
 
   const handleCancelBooking = (roomId) => {
-    const updated = bookings.filter(b => b.room._id !== roomId);
+    const updated = bookings.filter(b => b.room.id !== roomId);
     setBookings(updated);
-    sendLocalNotification('Booking Cancelled', `Your request was cancelled.`);
+    sendLocalNotification('Booking Cancelled', `Your booking request was cancelled.`);
   };
 
   return (
@@ -60,7 +39,7 @@ export default function UpdateAvailability() {
 
       <Text style={styles.subtitle}>Mark Your Availability</Text>
       <View style={styles.row}>
-        {['present', 'in class', 'absent'].map(status => (
+        {['present', 'absent', 'in class'].map(status => (
           <TouchableOpacity
             key={status}
             style={[styles.btn, availability === status && styles.activeBtn]}
@@ -71,29 +50,32 @@ export default function UpdateAvailability() {
         ))}
       </View>
 
-      <Text style={[styles.subtitle, { marginTop: 25 }]}>Book a Classroom</Text>
+      <Text style={[styles.subtitle, { marginTop: 20 }]}>Book Classroom</Text>
       <FlatList
         data={rooms}
-        keyExtractor={(item) => item._id}
+        keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <View style={styles.roomCard}>
             <Text style={styles.roomName}>{item.name}</Text>
-            <TouchableOpacity style={styles.bookBtn} onPress={() => handleBookRoom(item)}>
+            <TouchableOpacity
+              style={styles.bookBtn}
+              onPress={() => handleBookRoom(item)}
+            >
               <Text style={styles.bookText}>Book</Text>
             </TouchableOpacity>
           </View>
         )}
       />
 
-      <Text style={[styles.subtitle, { marginTop: 25 }]}>My Booking Requests</Text>
+      <Text style={[styles.subtitle, { marginTop: 30 }]}>Your Booking Requests</Text>
       {bookings.length === 0 ? (
-        <Text style={styles.info}>No bookings yet</Text>
+        <Text style={styles.info}>No current bookings</Text>
       ) : (
         bookings.map((b, i) => (
           <View key={i} style={styles.bookingCard}>
             <Text>{b.room.name}</Text>
             <Text>Status: {b.status}</Text>
-            <TouchableOpacity onPress={() => handleCancelBooking(b.room._id)}>
+            <TouchableOpacity onPress={() => handleCancelBooking(b.room.id)}>
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
@@ -108,7 +90,13 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: '700', color: '#2E86DE', marginBottom: 10 },
   subtitle: { fontSize: 18, fontWeight: '600', marginBottom: 10 },
   row: { flexDirection: 'row', justifyContent: 'space-around' },
-  btn: { backgroundColor: '#ddd', padding: 10, borderRadius: 8, width: '30%', alignItems: 'center' },
+  btn: {
+    backgroundColor: '#ddd',
+    padding: 10,
+    borderRadius: 8,
+    width: '30%',
+    alignItems: 'center',
+  },
   activeBtn: { backgroundColor: '#2E86DE' },
   btnText: { color: '#fff', fontWeight: '600' },
   roomCard: {

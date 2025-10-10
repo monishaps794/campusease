@@ -12,13 +12,13 @@ export default function BookingModal({ visible, onClose, room, onBooked }) {
   const [loading, setLoading] = useState(false);
 
   const slots = [
-    '08:00 - 09:00',
-    '09:00 - 10:00',
-    '10:00 - 11:00',
+    '08:30 - 09:30',
+    '09:30 - 10:30',
     '11:00 - 12:00',
-    '13:00 - 14:00',
+    '12:00 - 13:00',
     '14:00 - 15:00',
     '15:00 - 16:00',
+    '16:00 - 17:00',
   ];
 
   useEffect(() => {
@@ -45,14 +45,15 @@ export default function BookingModal({ visible, onClose, room, onBooked }) {
     try {
       // call backend (replace with real endpoint)
       const payload = {
-        roomId: room._id || room.id,
-        startTime: selectedSlot,
-        endTime: selectedSlot,
-        reason: `Booked by ${user?.email}`,
-        userId: user?.id || user?.email
-      };
-
-      const res = await safe(() => api.post('/bookings', payload), { booking: payload });
+  roomId: room._id || room.id,
+  requestedBy: user?.id || user?.email,
+  date: new Date().toISOString().slice(0,10),
+  startTime: selectedSlot.split(' - ')[0], // or proper format
+  endTime: selectedSlot.split(' - ')[1],
+  reason: `Extra class by ${user.email}`,
+  forSection: { branch: user.branch || 'ISE', semester: user.semester || '5', section: user.section || 'A' }
+};
+      const res = await safe(() => api.post('/bookings/requests', payload), { id: 'mock-req', ...payload, status:'pending' });
       await sendLocalNotification('Room booked', `${room.name} booked for ${selectedSlot}`);
       Alert.alert('Booked', `${room.name} booked for ${selectedSlot}`);
       onBooked && onBooked(res);
