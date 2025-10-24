@@ -73,6 +73,16 @@ export const getFacultyAvailability = asyncHandler(async (req, res) => {
   res.status(200).json(availabilityRecords);
 });
 
+export const updateFacultyProfile = async (req, res) => {
+  const { email, branch, semester, section } = req.body;
+  const user = await User.findOneAndUpdate(
+    { email },
+    { branch, semester, section },
+    { new: true }
+  );
+  res.json(user);
+};
+
 // 🏢 Get staffroom-wise faculty status (for Faculty Locator page)
 export const getStaffroomStatus = asyncHandler(async (req, res) => {
   const { date } = req.query;

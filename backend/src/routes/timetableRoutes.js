@@ -1,20 +1,16 @@
+// backend/routes/timetableRoutes.js
 import express from "express";
 import {
-  createTimetableEntry,
-  getTimetable,
-  deleteTimetableEntry,
+  getTimetableBySection,
+  getTodayTimetable,
 } from "../controllers/timetableController.js";
-import auth from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
-// 🗓️ Get timetable for branch, semester, section
-router.get("/:branch/:semester/:section", auth, getTimetable);
+// Get timetable for a specific branch/semester/section/day
+router.get("/:branch/:semester/:section/:day", getTimetableBySection);
 
-// 🆕 Create timetable entry
-router.post("/", auth, createTimetableEntry);
-
-// 🗑️ Delete timetable entry by ID
-router.delete("/:id", auth, deleteTimetableEntry);
+// Get today's timetable automatically (optional use by student home)
+router.get("/:branch/:semester/:section", getTodayTimetable);
 
 export default router;

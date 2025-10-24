@@ -1,32 +1,35 @@
+// backend/controllers/notificationController.js
 import asyncHandler from "express-async-handler";
 import Notification from "../models/Notification.js";
 
-// 🔔 Get a list of notifications (latest first)
-export const listNotifications = asyncHandler(async (req, res) => {
-  const { limit = 50 } = req.query;
+// 📬 GET /api/notifications/:branch/:semester/:section
+export const getNotifications = asyncHandler(async (req, res) => {
+  const { branch, semester, section } = req.params;
+  const notifications = await Notification.find({
+    branch,
+    semester,
+    section,
+  }).sort({ createdAt: -1 });
 
-  const notifs = await Notification.find()
-    .sort({ createdAt: -1 })
-    .limit(Number(limit))
-    .lean();
-
-  res.json(notifs);
+  res.json(notifications);
 });
 
-// 📢 Create and broadcast a new notification
-export const createNotification = asyncHandler(async (req, res) => {
-  const { to = [], title, body, type, meta = {} } = req.body;
+// 📬 POST /api/notifications
+export const sendNotification = asyncHandler(async (req, res) => {
+  const { title, message, branch, semester, section, sender } = req.body;
 
-  const notif = await Notification.create({
-    to,
+  if (!title || !message || !branch || !semester || !section) {
+    return res.status(400).json({ message: "Missing required fields" });
+  }
+
+  const notification = await Notification.create({
     title,
-    body,
-    type,
-    meta,
+    message,
+    branch,
+    semester,
+    section,
+    sender,
   });
 
-  const io = req.app.get("io");
-  if (io) io.emit("notification", notif); // broadcast via socket.io
-
-  res.json(notif);
+  res.status(201).json({ message: "Notification sent", notification });
 });

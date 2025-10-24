@@ -1,13 +1,16 @@
+// backend/routes/notificationRoutes.js
 import express from "express";
-import { listNotifications, createNotification } from "../controllers/notificationController.js";
-import auth from "../middlewares/authMiddleware.js";
+import {
+  getNotifications,
+  sendNotification,
+} from "../controllers/notificationController.js";
 
 const router = express.Router();
 
-// Get all notifications
-router.get("/", auth, listNotifications);
+// Get notifications for a branch/semester/section
+router.get("/:branch/:semester/:section", getNotifications);
 
-// Create a new notification
-router.post("/", auth, createNotification);
+// Send a new notification (faculty/admin use)
+router.post("/", sendNotification);
 
 export default router;

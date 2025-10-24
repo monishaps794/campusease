@@ -1,9 +1,8 @@
 import asyncHandler from "express-async-handler";
 import Room from "../models/Room.js";
-import TimetableEntry from "../models/TimetableEntry.js";
+import Timetable from "../models/Timetable.js";
 import Booking from "../models/Booking.js";
 import FacultyAvailability from "../models/FacultyAvailability.js";
-
 // 📋 List all rooms (optionally filter by type)
 export const listRooms = asyncHandler(async (req, res) => {
   const { type } = req.query;
@@ -38,7 +37,7 @@ export const getRoomAvailability = asyncHandler(async (req, res) => {
   }
 
   // Fetch timetable for the given room & day
-  const timetable = await TimetableEntry.find({ roomId, dayOfWeek })
+  const timetable = await Timetable.find({ roomId, dayOfWeek })
     .populate("facultyId", "name email role")
     .populate("roomId", "name type capacity location")
     .lean();

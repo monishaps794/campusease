@@ -1,1 +1,1 @@
-export const BASE_URL = "http://192.168.31.180:4000/api";
+export const BASE_URL = process.env.EXPO_PUBLIC_API_URL || "http://10.14.184.64:4000/api";

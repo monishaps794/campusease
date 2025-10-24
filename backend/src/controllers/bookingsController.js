@@ -1,6 +1,6 @@
 import asyncHandler from "express-async-handler";
 import Booking from "../models/Booking.js";
-import TimetableEntry from "../models/TimetableEntry.js";
+import Timetable from "../models/Timetable.js";
 import Room from "../models/Room.js";
 import Notification from "../models/Notification.js";
 
