@@ -1,23 +1,26 @@
-import { useState } from 'react';
-import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useState } from "react";
+import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import api from "../../services/api";
 
 export default function LoginScreen({ navigation }) {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleRequestOtp = async () => {
     if (!email) {
-      Alert.alert('Enter email');
+      Alert.alert("Error", "Please enter a valid email address.");
       return;
     }
+
     setLoading(true);
     try {
-      // 🔹 call backend later: await api.post('/auth/request-otp', { email });
-      console.log(`OTP requested for ${email}`);
-      Alert.alert('OTP sent!', 'Use 123456 as mock OTP');
-      navigation.navigate('Otp', { email });
+      const res = await api.post("/auth/request-otp", { email });
+      console.log("✅ OTP requested for:", email);
+      Alert.alert("OTP Sent", "Please check your email (mock: 123456).");
+      navigation.navigate("Otp", { email });
     } catch (err) {
-      Alert.alert('Error requesting OTP', err.message);
+      console.error("❌ OTP request failed:", err.message);
+      Alert.alert("Error", "Unable to send OTP.");
     } finally {
       setLoading(false);
     }
@@ -26,8 +29,6 @@ export default function LoginScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>CampusEase</Text>
-      <Text style={styles.subtitle}>Login with your registered email</Text>
-
       <TextInput
         placeholder="Email address"
         value={email}
@@ -36,27 +37,17 @@ export default function LoginScreen({ navigation }) {
         keyboardType="email-address"
         autoCapitalize="none"
       />
-
       <TouchableOpacity style={styles.button} onPress={handleRequestOtp} disabled={loading}>
-        <Text style={styles.buttonText}>{loading ? 'Sending...' : 'Send OTP'}</Text>
+        <Text style={styles.buttonText}>{loading ? "Sending..." : "Send OTP"}</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#f9f9f9' },
-  title: { fontSize: 28, fontWeight: '700', color: '#2E86DE', marginBottom: 8 },
-  subtitle: { fontSize: 16, color: '#555', marginBottom: 20 },
-  input: {
-    width: '90%',
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 10,
-    padding: 12,
-    backgroundColor: '#fff',
-    marginBottom: 20,
-  },
-  button: { backgroundColor: '#2E86DE', padding: 14, borderRadius: 10, width: '90%' },
-  buttonText: { color: '#fff', textAlign: 'center', fontWeight: '600', fontSize: 16 },
+  container: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#fff" },
+  title: { fontSize: 26, fontWeight: "bold", color: "#2E86DE", marginBottom: 20 },
+  input: { width: "80%", borderWidth: 1, borderColor: "#ccc", borderRadius: 10, padding: 12 },
+  button: { backgroundColor: "#2E86DE", marginTop: 20, padding: 14, borderRadius: 10 },
+  buttonText: { color: "#fff", fontSize: 16 },
 });

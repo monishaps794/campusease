@@ -1,24 +1,20 @@
 import express from "express";
-import auth from "../middlewares/authMiddleware.js";
 import {
   createBooking,
-  getBookingsForUser,
-} from "../controllers/bookingsController.js";
+  getFacultyBookings,
+  deleteBooking,
+} from "../controllers/bookingController.js";
+import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-/**
- * @route POST /api/bookings
- * @desc Create a new room booking
- * @access Protected (Faculty/Student)
- */
-router.post("/", auth, createBooking);
+// ✅ Create a new booking request
+router.post("/", protect, createBooking);
 
-/**
- * @route GET /api/bookings
- * @desc Get all bookings for the logged-in user
- * @access Protected
- */
-router.get("/", auth, getBookingsForUser);
+// ✅ Get all bookings made by a faculty (for dashboard)
+router.get("/faculty/:facultyId", protect, getFacultyBookings);
+
+// ✅ Delete a booking
+router.delete("/:id", protect, deleteBooking);
 
 export default router;

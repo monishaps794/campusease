@@ -1,53 +1,79 @@
-import asyncHandler from "express-async-handler";
+// ✅ src/controllers/authController.js
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
-import { createOtp, verifyOtp as verifyOtpService } from "../services/otpService.js";
 
-// ✅ Request OTP
-export const requestOtp = asyncHandler(async (req, res) => {
-  const { email, name, role } = req.body;
+/**
+ * 📨 REQUEST OTP
+ */
+export const requestOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
 
-  if (!email) {
-    return res.status(400).json({ message: "Email is required" });
+    // Find or create user
+    let user = await User.findOne({ email });
+    if (!user) {
+      user = new User({ email, role: "faculty", name: "Faculty User" });
+      await user.save();
+    }
+
+    // Generate a mock OTP
+    const otp = "123456"; // ✅ static for testing
+    user.otp = otp;
+    await user.save();
+
+    console.log(`✅ OTP for ${email}: ${otp}`);
+    res.json({ message: "OTP sent successfully (mock)", otp }); // mock only for testing
+  } catch (err) {
+    console.error("❌ Error in requestOtp:", err);
+    res.status(500).json({ message: "Server error" });
   }
+};
 
-  // create user if not exists
-  let user = await User.findOne({ email });
-  if (!user && name) {
-    user = await User.create({ name, email, role: role || "student" });
-  }
+/**
+ * ✅ VERIFY OTP
+ */
+export const verifyOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
 
-  await createOtp(email);
-  res.json({ message: "OTP sent (check console in dev)." });
-});
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
-// ✅ Verify OTP
-export const verifyOtp = asyncHandler(async (req, res) => {
-  const { email, otp } = req.body;
+    if (user.otp !== otp) {
+      return res.status(400).json({ message: "Invalid OTP" });
+    }
 
-  if (!email || !otp) {
-    return res.status(400).json({ message: "Email and OTP required" });
-  }
+    // Clear OTP
+    user.otp = null;
+    await user.save();
 
-  const ok = await verifyOtpService(email, otp);
-  if (!ok) {
-    return res.status(400).json({ message: "Invalid or expired OTP" });
-  }
+    // Create JWT
+    if (!process.env.JWT_SECRET) {
+      console.error("❌ Missing JWT_SECRET in .env");
+      return res.status(500).json({ message: "Server misconfigured: missing JWT_SECRET" });
+    }
 
-  let user = await User.findOne({ email });
-  if (!user) {
-    user = await User.create({
-      name: email.split("@")[0],
-      email,
-      role: "student",
+    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
     });
+
+    res.json({
+      message: "OTP verified successfully",
+      token,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (err) {
+    console.error("❌ Error in verifyOtp:", err);
+    res.status(500).json({ message: "Server error" });
   }
-
-  const token = jwt.sign(
-    { id: user._id, role: user.role },
-    process.env.JWT_SECRET,
-    { expiresIn: "7d" }
-  );
-
-  res.json({ token, user });
-});
+};

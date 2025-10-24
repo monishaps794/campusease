@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-// 🏫 Define the Room schema
+// 🏫 Room Schema
 const roomSchema = new mongoose.Schema(
   {
     name: {
@@ -11,23 +11,27 @@ const roomSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["classroom", "lab"],
-      default: "classroom",
+      enum: ["classroom", "lab", "seminar hall"],
+      required: [true, "Room type is required"],
+      lowercase: true,
+      trim: true,
     },
     capacity: {
       type: Number,
       default: 50,
+      min: [1, "Capacity must be at least 1"],
     },
     location: {
       type: String,
       trim: true,
+      default: "Not specified",
     },
   },
   {
-    timestamps: true, // adds createdAt and updatedAt
+    timestamps: true, // Adds createdAt and updatedAt
   }
 );
 
-// 🏗️ Create model
+// 🏗️ Create Model
 const Room = mongoose.model("Room", roomSchema);
 export default Room;

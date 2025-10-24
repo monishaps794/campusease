@@ -1,57 +1,49 @@
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { useAuth } from '../contexts/AuthContext';
+// ✅ src/navigation/RootNavigator.js
+import React from "react";
+import { createStackNavigator } from "@react-navigation/stack";
+import { NavigationContainer } from "@react-navigation/native";
 
-// import screens
-import AdminDashboard from '../screens/Admin/AdminDashboard';
-import UpdateAvailability from '../screens/Faculty/UpdateAvailability';
-import AvailabilityScreen from '../screens/Student/AvailabilityScreen';
-import HomeScreen from '../screens/Student/HomeScreen';
-import NotificationsScreen from '../screens/Student/NotificationsScreen';
-import StaffroomScreen from '../screens/Student/StaffroomScreen';
-import TimetableScreen from '../screens/Student/TimetableScreen';
-const Tab = createBottomTabNavigator();
+// ✅ Screens
+import FacultyDashboard from "../screens/Faculty/FacultyDashboard";
+import MyBookings from "../screens/Faculty/MyBookings";
+import NotificationsScreen from "../screens/Faculty/NotificationsScreen";
 
-export default function RoleBasedNavigator() {
-  const { user } = useAuth();
+// ✅ Components
+import HeaderRight from "../components/HeaderRight"; // <— 🔔 Notification Icon
 
- // if (!user) return null; // fallback while loading
-if (!user || !user.role) {
+const Stack = createStackNavigator();
+
+export default function RootNavigator() {
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <Text>Loading user data...</Text>
-    </View>
+    <NavigationContainer>
+      <Stack.Navigator>
+        {/* ✅ Faculty Dashboard Screen */}
+        <Stack.Screen
+          name="FacultyDashboard"
+          component={FacultyDashboard}
+          options={{
+            title: "Dashboard",
+            headerRight: () => <HeaderRight />, // 🔔 Notification icon here
+          }}
+        />
+
+        {/* ✅ Faculty Booking List */}
+        <Stack.Screen
+          name="MyBookings"
+          component={MyBookings}
+          options={{
+            title: "My Bookings",
+            headerRight: () => <HeaderRight />, // optional (you can add here too)
+          }}
+        />
+
+        {/* ✅ Optional Notification Page */}
+        <Stack.Screen
+          name="Notifications"
+          component={NotificationsScreen}
+          options={{ title: "Notifications" }}
+        />
+      </Stack.Navigator>
+    </NavigationContainer>
   );
-}
-  switch (user.role) {
-    case 'student':
-      return (
-        <Tab.Navigator screenOptions={{ headerShown: false }}>
-          <Tab.Screen name="Home" component={HomeScreen} />
-          <Tab.Screen name="Timetable" component={TimetableScreen} />
-          <Tab.Screen name="Availability" component={AvailabilityScreen} />
-          <Tab.Screen name="Staffrooms" component={StaffroomScreen} />
-          <Tab.Screen name="Notifications" component={NotificationsScreen} />
-
-        </Tab.Navigator>
-      );
-
-    case 'faculty':
-      return (
-        <Tab.Navigator screenOptions={{ headerShown: false }}>
-          <Tab.Screen name="My Classes" component={TimetableScreen} />
-          <Tab.Screen name="Update Status" component={UpdateAvailability} />
-        </Tab.Navigator>
-      );
-
-    case 'admin':
-      return (
-        <Tab.Navigator screenOptions={{ headerShown: false }}>
-          <Tab.Screen name="Dashboard" component={AdminDashboard} />
-          <Tab.Screen name="Rooms" component={HomeScreen} />
-        </Tab.Navigator>
-      );
-
-    default:
-      return null;
-  }
 }
