@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "campusease",
+    "slug": "campusease",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "sdkVersion": "54.0.0",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "android": {
+      "package": "com.campusease.app"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "67ade538-7b44-436c-b467-f0a817a74135"
+      }
+    },
+    "owner": "sahanaa21"
+  }
+}
