@@ -1,11 +1,10 @@
 import mongoose from "mongoose";
 
 const classroomSchema = new mongoose.Schema({
-  roomNumber: { type: String, required: true, unique: true },
-  capacity: { type: Number, required: true },
-  resources: [String],
-  isAvailable: { type: Boolean, default: true },
-}, { timestamps: true });
+  roomNumber: { type: String, required: true },
+  blockName: { type: String, required: true },
+  capacity: Number,
+  status: { type: String, enum: ["Available", "Booked"], default: "Available" },
+});
 
-const Classroom = mongoose.model("Classroom", classroomSchema);
-export default Classroom;
+export default mongoose.model("Classroom", classroomSchema);

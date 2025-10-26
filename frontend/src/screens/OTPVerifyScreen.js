@@ -19,7 +19,7 @@ export default function OTPVerifyScreen({ route, navigation }) {
       setLoading(true);
 
       // ✅ Make POST request using axios
-      const response = await axios.post('http://172.16.12.53:5000/auth/verify-otp', {
+      const response = await axios.post('http://192.168.31.180:5000/auth/verify-otp', {
         email,
         code: otp,
       });

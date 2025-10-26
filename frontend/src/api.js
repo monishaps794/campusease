@@ -1,14 +1,91 @@
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+// campusease-mobile/src/api.js
+const BASE_URL = "http://192.168.31.180:5000";
 
-const BASE_URL = 'http://172.16.12.53:5000'; // replace with backend host e.g. 10.0.2.2 for Android emulator or localhost for web
+const handleResp = async (res) => {
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+};
 
-const instance = axios.create({ baseURL: BASE_URL, timeout: 15000 });
+export const api = {
+  // Get available classrooms (optional query params: branch,year,section,day,timeSlot)
+  getAvailableRooms: async (query = {}) => {
+    const qs = new URLSearchParams(query).toString();
+    const url = `${BASE_URL}/bookings/available${qs ? "?" + qs : ""}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Status ${res.status}`);
+    return handleResp(res);
+  },
 
-instance.interceptors.request.use(async (config) => {
-  const token = await AsyncStorage.getItem('token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+  // Create booking request
+  requestBooking: async (payload) => {
+    const res = await fetch(`${BASE_URL}/bookings/request`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error(`Status ${res.status}`);
+    return handleResp(res);
+  },
 
-export default instance;
+  // Get bookings for a faculty email
+  getMyBookings: async (email) => {
+    const res = await fetch(`${BASE_URL}/bookings/faculty/${encodeURIComponent(email)}`);
+    if (!res.ok) throw new Error(`Status ${res.status}`);
+    return handleResp(res);
+  },
+
+  // Cancel booking (DELETE)
+  cancelBooking: async (id) => {
+    const res = await fetch(`${BASE_URL}/bookings/${id}`, { method: "DELETE" });
+    if (!res.ok) throw new Error(`Status ${res.status}`);
+    return handleResp(res);
+  },
+
+  // Admin: get pending requests
+  getPendingRequests: async () => {
+    const res = await fetch(`${BASE_URL}/bookings/requests`);
+    if (!res.ok) throw new Error(`Status ${res.status}`);
+    return handleResp(res);
+  },
+
+  // Admin: approve booking
+  approveBooking: async (id) => {
+    const res = await fetch(`${BASE_URL}/bookings/approve/${id}`, {
+      method: "PUT",
+    });
+    if (!res.ok) throw new Error(`Status ${res.status}`);
+    return handleResp(res);
+  },
+
+  // Admin: reject booking
+  rejectBooking: async (id) => {
+    const res = await fetch(`${BASE_URL}/bookings/reject/${id}`, {
+      method: "PUT",
+    });
+    if (!res.ok) throw new Error(`Status ${res.status}`);
+    return handleResp(res);
+  },
+
+  // Admin: get all bookings (optional)
+  getAllBookings: async () => {
+    const res = await fetch(`${BASE_URL}/bookings/all`);
+    if (!res.ok) throw new Error(`Status ${res.status}`);
+    return handleResp(res);
+  },
+
+  // Upload helper (multipart form)
+  uploadData: async (path, formData) => {
+    const res = await fetch(`${BASE_URL}${path}`, {
+      method: "POST",
+      body: formData,
+    });
+    if (!res.ok) throw new Error(`Status ${res.status}`);
+    return handleResp(res);
+  },
+};
+
+export default api;

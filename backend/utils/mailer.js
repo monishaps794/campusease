@@ -1,3 +1,4 @@
+// backend/src/utils/mailer.js
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 
@@ -5,7 +6,7 @@ dotenv.config();
 
 const {
   SMTP_HOST = "smtp.gmail.com",
-  SMTP_PORT = 587,
+  SMTP_PORT = 465,
   SMTP_USER,
   SMTP_PASS,
   FROM_EMAIL,
@@ -15,49 +16,57 @@ const {
 const transporter = nodemailer.createTransport({
   host: SMTP_HOST,
   port: Number(SMTP_PORT),
-  secure: Number(SMTP_PORT) === 465, // true for SSL
-  auth: SMTP_USER && SMTP_PASS ? { user: SMTP_USER, pass: SMTP_PASS } : undefined,
-  tls: { rejectUnauthorized: false },
+  secure: Number(SMTP_PORT) === 465, // true for port 465
+  auth: {
+    user: SMTP_USER,
+    pass: SMTP_PASS,
+  },
 });
 
-// ✅ Verify SMTP connection
-transporter.verify((err, success) => {
-  if (err) console.error("❌ Mailer verification failed:", err.message);
-  else console.log("✅ Mailer ready");
+// ✅ Verify SMTP connection once at startup
+transporter.verify((error, success) => {
+  if (error) {
+    console.error("❌ Mailer connection failed:", error.message);
+  } else {
+    console.log("✅ Mailer connected and ready");
+  }
 });
 
 // ✅ Send OTP email
 export const sendOTP = async (toEmail, otp) => {
   try {
     const html = `
-      <p>Your <b>CampusEase</b> OTP is <b>${otp}</b>.</p>
-      <p>It expires in ${OTP_EXP_MIN} minutes.</p>
+      <div style="font-family:sans-serif;padding:10px">
+        <h2>CampusEase OTP Verification</h2>
+        <p>Your OTP is <b>${otp}</b></p>
+        <p>This code expires in ${OTP_EXP_MIN} minutes.</p>
+      </div>
     `;
 
     await transporter.sendMail({
-      from: FROM_EMAIL || SMTP_USER,
+      from: FROM_EMAIL || `"CampusEase" <${SMTP_USER}>`,
       to: toEmail,
-      subject: "CampusEase OTP Verification",
+      subject: "Your OTP for CampusEase",
       html,
     });
 
-    console.log(`📧 OTP sent to ${toEmail}`);
+    console.log(`📧 OTP email sent to ${toEmail}`);
   } catch (err) {
-    console.error(`❌ Failed to send OTP to ${toEmail}:`, err.message);
+    console.error(`❌ Failed to send OTP: ${err.message}`);
   }
 };
 
-// ✅ Send general notification
+// ✅ Send generic notification email
 export const sendNotificationEmail = async (toEmail, subject, message) => {
   try {
     await transporter.sendMail({
-      from: FROM_EMAIL || SMTP_USER,
+      from: FROM_EMAIL || `"CampusEase" <${SMTP_USER}>`,
       to: toEmail,
       subject,
       html: `<p>${message}</p>`,
     });
     console.log(`📢 Notification email sent to ${toEmail}`);
   } catch (err) {
-    console.error(`❌ Failed to send email to ${toEmail}:`, err.message);
+    console.error(`❌ Failed to send notification: ${err.message}`);
   }
 };

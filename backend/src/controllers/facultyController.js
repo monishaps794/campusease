@@ -1,10 +1,9 @@
-// src/controllers/facultyController.js
 import Classroom from "../models/Classroom.js";
-import Booking from "../models/booking.js";
+import Booking from "../models/Booking.js";
 import Notification from "../models/notification.js";
 import Timetable from "../models/Timetable.js";
 
-// ✅ Get timetable for logged-in faculty
+// Get timetable for logged-in faculty
 export const getTimetableForFaculty = async (req, res) => {
   try {
     const timetable = await Timetable.find({ facultyEmail: req.user.email });
@@ -14,7 +13,7 @@ export const getTimetableForFaculty = async (req, res) => {
   }
 };
 
-// ✅ Get available classrooms
+// Get available classrooms
 export const getAvailableClassrooms = async (req, res) => {
   try {
     const rooms = await Classroom.find({ status: "available" });
@@ -24,7 +23,7 @@ export const getAvailableClassrooms = async (req, res) => {
   }
 };
 
-// ✅ Faculty requests a booking
+// Faculty requests a booking
 export const requestBooking = async (req, res) => {
   try {
     const { roomId, date, slot } = req.body;
@@ -41,7 +40,7 @@ export const requestBooking = async (req, res) => {
   }
 };
 
-// ✅ Faculty views own bookings
+// Faculty views own bookings
 export const myBookings = async (req, res) => {
   try {
     const bookings = await Booking.find({ requestedBy: req.user.email });
@@ -51,18 +50,18 @@ export const myBookings = async (req, res) => {
   }
 };
 
-// ✅ Update faculty availability
+// Update faculty availability
 export const updateAvailability = async (req, res) => {
   try {
     const { available } = req.body;
-    // (Update logic can depend on your schema)
+    // Update logic as per schema
     res.json({ message: "Availability updated", available });
   } catch (err) {
     res.status(500).json({ message: "Failed to update availability", error: err.message });
   }
 };
 
-// ✅ Send a notification to students
+// Send notification to students
 export const sendNotificationToSection = async (req, res) => {
   try {
     const { branch, year, section, message } = req.body;

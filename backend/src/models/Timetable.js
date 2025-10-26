@@ -1,26 +1,18 @@
-/*import mongoose from "mongoose";
-
-const timetableSchema = new mongoose.Schema({
-  facultyId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  subject: { type: String, required: true },
-  classroom: { type: String, required: true },
-  day: { type: String, required: true },
-  timeSlot: { type: String, required: true },
-});
-
-const Timetable = mongoose.model("Timetable", timetableSchema);
-export default Timetable;*/
-
-// src/models/Timetable.js
 import mongoose from "mongoose";
 
 const timetableSchema = new mongoose.Schema({
-  day: { type: String, required: true },
-  period: { type: String, required: true },
-  subject: { type: String, required: true },
-  faculty: { type: String },
-  room: { type: String },
+  branch: String,
+  year: String,
+  section: String,
+  day: String,
+  slots: [
+    {
+      timeSlot: String,  // e.g., "9:00-10:00"
+      classroom: String, // classroom number
+      faculty: String,
+      subject: String,
+    },
+  ],
 });
 
-const Timetable = mongoose.models.Timetable || mongoose.model("Timetable", timetableSchema);
-export default Timetable;
+export default mongoose.model("Timetable", timetableSchema);

@@ -5,6 +5,7 @@ type NativeFocusChangeEvent = {
 };
 type TabBarItemLabelVisibilityMode = 'auto' | 'selected' | 'labeled' | 'unlabeled';
 type TabBarMinimizeBehavior = 'automatic' | 'never' | 'onScrollDown' | 'onScrollUp';
+type TabBarControllerMode = 'automatic' | 'tabBar' | 'tabSidebar';
 export interface NativeProps extends ViewProps {
     onNativeFocusChange?: DirectEventHandler<NativeFocusChangeEvent>;
     tabBarBackgroundColor?: ColorValue;
@@ -23,6 +24,7 @@ export interface NativeProps extends ViewProps {
     tabBarItemLabelVisibilityMode?: WithDefault<TabBarItemLabelVisibilityMode, 'auto'>;
     tabBarTintColor?: ColorValue;
     tabBarMinimizeBehavior?: WithDefault<TabBarMinimizeBehavior, 'automatic'>;
+    tabBarControllerMode?: WithDefault<TabBarControllerMode, 'automatic'>;
     controlNavigationStateInJS?: WithDefault<boolean, false>;
 }
 declare const _default: import("react-native/Libraries/Utilities/codegenNativeComponent").NativeComponentType<NativeProps>;

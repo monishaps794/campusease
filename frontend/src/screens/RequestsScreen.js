@@ -1,29 +1,82 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, Button } from 'react-native';
-import api from '../api';
+// campusease-mobile/src/screens/RequestsScreen.js
+import React, { useEffect, useState } from "react";
+import { View, Text, TouchableOpacity, ScrollView, Alert, RefreshControl } from "react-native";
+import api from "../api";
 
 export default function RequestsScreen() {
-  const [reqs, setReqs] = useState([]);
-  useEffect(()=> fetch(), []);
-  const fetch = async () => {
-    const res = await api.get('/admin/requests');
-    setReqs(res.data);
+  const [requests, setRequests] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const load = async () => {
+    setRefreshing(true);
+    try {
+      const data = await api.getPendingRequests();
+      setRequests(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+      Alert.alert("Error", "Failed to load requests");
+    } finally {
+      setRefreshing(false);
+    }
   };
-  const approve = async (id) => {
-    await api.put(`/admin/requests/${id}/approve`);
-    fetch();
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const act = async (id, action) => {
+    try {
+      if (action === "approve") {
+        const res = await api.approveBooking(id);
+        Alert.alert("Done", res.message || "Approved");
+      } else {
+        const res = await api.rejectBooking(id);
+        Alert.alert("Done", res.message || "Rejected");
+      }
+      load();
+    } catch (err) {
+      console.error(err);
+      Alert.alert("Error", "Action failed");
+    }
   };
+
   return (
-    <View style={{ padding:20 }}>
-      <Text>Requests</Text>
-      <FlatList data={reqs} keyExtractor={r=>r._id} renderItem={({item})=>(
-        <View style={{ padding:8, borderBottomWidth:1 }}>
-          <Text>Type: {item.type}</Text>
-          <Text>Requester: {item.requesterEmail}</Text>
-          <Text>Status: {item.status}</Text>
-          <Button title="Approve" onPress={()=>approve(item._id)} />
+    <ScrollView
+      contentContainerStyle={{ padding: 20 }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} />}
+    >
+      <Text style={{ fontSize: 22, fontWeight: "bold", marginBottom: 12 }}>Pending Booking Requests</Text>
+
+      {!requests.length && <Text>No pending requests.</Text>}
+
+      {requests.map((r) => (
+        <View key={r._id} style={{ backgroundColor: "#fff", padding: 12, borderRadius: 8, marginBottom: 10 }}>
+          <Text style={{ fontWeight: "600" }}>{r.roomNumber || r.roomId || r.roomId?.roomNumber}</Text>
+          <Text>Requested By: {r.requestedBy}</Text>
+          <Text>Date: {r.date}</Text>
+          <Text>Slot: {r.slot}</Text>
+          {r.reason && <Text>Reason: {r.reason}</Text>}
+
+          <View style={{ flexDirection: "row", marginTop: 10 }}>
+            <TouchableOpacity onPress={() => act(r._id, "approve")} style={[styles.btn, { backgroundColor: "green" }]}>
+              <Text style={{ color: "#fff" }}>Approve</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => act(r._id, "reject")} style={[styles.btn, { backgroundColor: "red" }]}>
+              <Text style={{ color: "#fff" }}>Reject</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      )}/>
-    </View>
+      ))}
+    </ScrollView>
   );
 }
+
+const styles = {
+  btn: {
+    flex: 1,
+    padding: 10,
+    borderRadius: 8,
+    marginHorizontal: 6,
+    alignItems: "center",
+  },
+};
