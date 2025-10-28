@@ -1,82 +1,68 @@
-// campusease-mobile/src/screens/RequestsScreen.js
+// frontend/src/screens/RequestsScreen.js
 import React, { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, ScrollView, Alert, RefreshControl } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, Alert, ActivityIndicator, StyleSheet } from "react-native";
 import api from "../api";
 
 export default function RequestsScreen() {
   const [requests, setRequests] = useState([]);
-  const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const load = async () => {
-    setRefreshing(true);
+  const fetch = async () => {
     try {
-      const data = await api.getPendingRequests();
-      setRequests(Array.isArray(data) ? data : []);
+      setLoading(true);
+      const res = await api.getPendingRequests();
+      if (res && res.success) setRequests(res.requests || []);
     } catch (err) {
-      console.error(err);
-      Alert.alert("Error", "Failed to load requests");
+      console.error("fetchRequests error:", err);
+      Alert.alert("Error", err.message || "Failed");
     } finally {
-      setRefreshing(false);
+      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { fetch(); }, []);
 
-  const act = async (id, action) => {
+  const take = async (id, action) => {
     try {
-      if (action === "approve") {
-        const res = await api.approveBooking(id);
-        Alert.alert("Done", res.message || "Approved");
-      } else {
-        const res = await api.rejectBooking(id);
-        Alert.alert("Done", res.message || "Rejected");
-      }
-      load();
+      if (action === "approve") await api.approveBooking(id);
+      else await api.rejectBooking(id);
+      fetch();
     } catch (err) {
-      console.error(err);
-      Alert.alert("Error", "Action failed");
+      console.error("take action err:", err);
+      Alert.alert("Error", err.message || "Failed");
     }
   };
+
+  if (loading) return <ActivityIndicator style={{ marginTop:40 }} />;
 
   return (
-    <ScrollView
-      contentContainerStyle={{ padding: 20 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} />}
-    >
-      <Text style={{ fontSize: 22, fontWeight: "bold", marginBottom: 12 }}>Pending Booking Requests</Text>
-
-      {!requests.length && <Text>No pending requests.</Text>}
-
-      {requests.map((r) => (
-        <View key={r._id} style={{ backgroundColor: "#fff", padding: 12, borderRadius: 8, marginBottom: 10 }}>
-          <Text style={{ fontWeight: "600" }}>{r.roomNumber || r.roomId || r.roomId?.roomNumber}</Text>
-          <Text>Requested By: {r.requestedBy}</Text>
-          <Text>Date: {r.date}</Text>
-          <Text>Slot: {r.slot}</Text>
-          {r.reason && <Text>Reason: {r.reason}</Text>}
-
-          <View style={{ flexDirection: "row", marginTop: 10 }}>
-            <TouchableOpacity onPress={() => act(r._id, "approve")} style={[styles.btn, { backgroundColor: "green" }]}>
-              <Text style={{ color: "#fff" }}>Approve</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => act(r._id, "reject")} style={[styles.btn, { backgroundColor: "red" }]}>
-              <Text style={{ color: "#fff" }}>Reject</Text>
-            </TouchableOpacity>
+    <View style={{flex:1, padding:12}}>
+      <Text style={{ fontSize:18, fontWeight:"bold" }}>Pending Requests</Text>
+      <FlatList
+        data={requests}
+        keyExtractor={i=>i._id}
+        renderItem={({item}) => (
+          <View style={styles.card}>
+            <Text>Room: {item.roomId?.roomNumber || item.roomId}</Text>
+            <Text>Date: {item.date} Slot: {item.slot}</Text>
+            <Text>By: {item.requestedBy}</Text>
+            <View style={{flexDirection:"row", marginTop:8}}>
+              <TouchableOpacity style={[styles.btn, {backgroundColor:"#28a745"}]} onPress={()=>take(item._id,"approve")}>
+                <Text style={{color:"#fff"}}>Approve</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.btn, {backgroundColor:"#e63946", marginLeft:8}]} onPress={()=>take(item._id,"reject")}>
+                <Text style={{color:"#fff"}}>Reject</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      ))}
-    </ScrollView>
+        )}
+        ListEmptyComponent={<Text style={{textAlign:"center", marginTop:20}}>No pending requests</Text>}
+      />
+    </View>
   );
 }
 
-const styles = {
-  btn: {
-    flex: 1,
-    padding: 10,
-    borderRadius: 8,
-    marginHorizontal: 6,
-    alignItems: "center",
-  },
-};
+const styles = StyleSheet.create({
+  card: { backgroundColor:"#fff", padding:12, marginVertical:8, borderRadius:8 },
+  btn: { padding:8, borderRadius:6 }
+});

@@ -1,30 +1,88 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, Button, Alert } from 'react-native';
-import api from '../api';
+// frontend/src/screens/LoginScreen.js
+import React, { useState } from "react";
+import { View, Text, TextInput, Button, Alert, StyleSheet, Platform } from "react-native";
+import axios from "axios";
 
 export default function LoginScreen({ navigation }) {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+
   const requestOtp = async () => {
-    // basic email validation
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      Alert.alert('Invalid email', 'Please enter a valid email address');
+    if (!email.trim()) {
+      Alert.alert("Error", "Please enter your email");
       return;
     }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      Alert.alert("Invalid Email", "Enter a valid email address");
+      return;
+    }
+
     try {
-      const res = await api.post('/auth/request-otp', { email });
-      Alert.alert('OTP', 'If your email is valid, an OTP was sent (check spam).');
-      navigation.navigate('OTPVerify', { email });
-    } catch (err) {
-      Alert.alert('Error', err.response?.data?.message || err.message);
+      setLoading(true);
+      const res = await axios.post("http://192.168.31.180:5000/auth/request-otp", {
+        email,
+      });
+
+      if (res.data.success) {
+        Alert.alert("Success", res.data.message);
+        navigation.navigate("OTPVerify", { email });
+      } else {
+        Alert.alert("Error", res.data.message || "Failed to send OTP");
+      }
+    } catch (error) {
+      console.error("❌ OTP Request Error:", error.response?.data || error.message);
+      Alert.alert("Error", error.response?.data?.message || "Failed to send OTP");
+    } finally {
+      setLoading(false);
     }
   };
+
   return (
-    <View style={{ flex:1, padding:20 }}>
-      <Text style={{ fontSize:22, marginBottom:10 }}>Campusease Login</Text>
-      <TextInput placeholder="Enter email" keyboardType="email-address" autoCapitalize="none"
-        value={email} onChangeText={setEmail}
-        style={{ borderWidth:1, padding:8, marginBottom:12 }} />
-      <Button title="Request OTP" onPress={requestOtp}/>
+    <View style={styles.container}>
+      <Text style={styles.title}>CampusEase Login</Text>
+
+      <TextInput
+        style={styles.input}
+        placeholder="Enter your email"
+        keyboardType="email-address"
+        autoCapitalize="none"
+        value={email}
+        onChangeText={setEmail}
+      />
+
+      <View style={styles.buttonWrapper}>
+        <Button title={loading ? "Sending..." : "Get OTP"} onPress={requestOtp} disabled={loading} />
+      </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    padding: 20,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: "bold",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    padding: 10,
+    borderRadius: 6,
+    marginBottom: 15,
+    ...Platform.select({
+      web: { pointerEvents: "auto" },
+    }),
+  },
+  buttonWrapper: {
+    ...Platform.select({
+      web: { pointerEvents: "auto" },
+    }),
+  },
+});

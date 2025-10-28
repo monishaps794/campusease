@@ -2,6 +2,29 @@ import Classroom from "../models/Classroom.js";
 import Booking from "../models/Booking.js";
 import Notification from "../models/notification.js";
 import Timetable from "../models/Timetable.js";
+import User from "../models/User.js";
+
+// ✅ Get faculty profile by email
+export const getFacultyProfile = async (req, res) => {
+  try {
+    const { email } = req.query;
+    if (!email)
+      return res.status(400).json({ message: "Email query param required." });
+
+    const faculty = await User.findOne({ email, role: "faculty" }).select(
+      "-password"
+    );
+    if (!faculty)
+      return res.status(404).json({ message: "Faculty not found." });
+
+    res.status(200).json({ success: true, faculty });
+  } catch (err) {
+    console.error("❌ Faculty profile error:", err);
+    res
+      .status(500)
+      .json({ message: "Server error while fetching faculty profile." });
+  }
+};
 
 // Get timetable for logged-in faculty
 export const getTimetableForFaculty = async (req, res) => {

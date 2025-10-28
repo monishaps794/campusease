@@ -1,32 +1,93 @@
 import Timetable from "../models/Timetable.js";
+import User from "../models/User.js";
 
-// -------------------- SELECT SECTION --------------------
-export const selectSection = async (req, res) => {
+// ✅ Student registration
+export const registerStudent = async (req, res) => {
   try {
-    const { branch, year, section } = req.body;
-    const user = req.user;
+    const { name, email, department, year, section, semester } = req.body;
 
-    if (user.role !== "student") {
-      return res.status(403).json({ message: "Only students can perform this action" });
+    if (!name || !email || !department || !year || !section || !semester) {
+      return res.status(400).json({ message: "All fields are required." });
     }
 
-    if (user.sectionSelected) {
-      return res.status(400).json({ message: "Section already selected" });
+    const existing = await User.findOne({ email: email.toLowerCase().trim() });
+    if (existing) {
+      return res.status(400).json({ message: "Student already registered with this email." });
     }
 
-    user.branch = branch;
-    user.year = year;
-    user.section = section;
-    user.sectionSelected = true;
+    const student = new User({
+      name,
+      email: email.toLowerCase().trim(),
+      role: "student",
+      department,
+      year,
+      section,
+      semester,
+    });
 
-    await user.save();
+    await student.save();
 
-    return res.json({ user });
+    res.status(201).json({
+      success: true,
+      message: "Student registered successfully.",
+      user: student,
+    });
   } catch (err) {
-    console.error("Error in selectSection:", err);
-    res.status(500).json({ message: "Server error" });
+    console.error("❌ Register student error:", err);
+    res.status(500).json({ message: "Server error while registering student." });
   }
 };
+
+// ✅ Fetch student profile by email
+export const getStudentProfile = async (req, res) => {
+  try {
+    const { email } = req.query;
+    if (!email) return res.status(400).json({ message: "Email required." });
+
+    const student = await User.findOne({ email });
+    if (!student) return res.status(404).json({ message: "Student not found." });
+
+    res.status(200).json({
+      success: true,
+      student: {
+        name: student.name,
+        email: student.email,
+        department: student.department,
+        year: student.year,
+        section: student.section,
+        semester: student.semester,
+      },
+    });
+  } catch (err) {
+    console.error("❌ getStudentProfile error:", err);
+    res.status(500).json({ message: "Server error while fetching student profile." });
+  }
+};
+// ✅ Update student info (optional; you can keep or remove if not using StudentSelect)
+export const updateStudentInfo = async (req, res) => {
+  try {
+    const { department, semester, year, section } = req.body;
+    const userEmail = req.user.email;
+
+    const student = await User.findOneAndUpdate(
+      { email: userEmail },
+      { department, semester, year, section },
+      { new: true }
+    );
+
+    if (!student) return res.status(404).json({ message: "Student not found." });
+
+    res.status(200).json({
+      success: true,
+      message: "Student info updated successfully.",
+      user: student,
+    });
+  } catch (err) {
+    console.error("❌ Update student info error:", err);
+    res.status(500).json({ message: "Server error while updating student info." });
+  }
+};
+
 
 // -------------------- GET TODAY'S TIMETABLE --------------------
 export const getTodaysTimetable = async (req, res) => {

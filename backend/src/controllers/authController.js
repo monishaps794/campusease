@@ -1,164 +1,181 @@
-/*import OTP from "../models/OTP.js";
-import User from "../models/User.js";
-import { sendOTP } from "../../utils/mailer.js";
-import jwt from "jsonwebtoken";
-
-const JWT_SECRET = process.env.JWT_SECRET || "default_secret";
-
-// 📩 Request OTP
-const requestOtp = async (req, res) => {
-  // your existing logic here
-};
-
-// ✅ Verify OTP
-const verifyOtp = async (req, res) => {
-  // your existing logic here
-};
-
-// 👩‍🏫 Register Faculty
-const registerFaculty = async (req, res) => {
-  // your existing logic here
-};
-
-// 🧑‍💼 Register Admin
-const registerAdmin = async (req, res) => {
-  // your existing logic here
-};
-
-// ✅ Export all functions
-export { requestOtp, verifyOtp, registerFaculty, registerAdmin };*/
-
+// backend/src/controllers/authController.js
 import OTP from "../models/OTP.js";
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
+import { sendOTP } from "../../utils/mailer.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "default_secret";
+const OTP_EXP_MIN = parseInt(process.env.OTP_EXP_MIN || "5", 10);
 
-// 📩 Request OTP
+// ✅ 1️⃣ Request OTP (Login step)
 export const requestOtp = async (req, res) => {
   try {
-    const { email } = req.body;
-
-    if (!email) {
+    let { email } = req.body;
+    if (!email)
       return res.status(400).json({ message: "Email is required" });
-    }
 
-    // Generate 6-digit OTP
-    const otpCode = Math.floor(100000 + Math.random() * 900000);
+    email = email.toLowerCase().trim();
 
-    // Save or update OTP in DB
+    // Generate a 6-digit OTP
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+
     await OTP.findOneAndUpdate(
       { email },
       { email, code: otpCode, createdAt: new Date() },
       { upsert: true, new: true }
     );
 
-    console.log(`✅ OTP for ${email}: ${otpCode}`); // for debugging
+    console.log(`✅ OTP for ${email}: ${otpCode}`);
 
-    // If you want to send via email, integrate sendOTP(email, otpCode) here.
+    await sendOTP(email, otpCode);
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      message: "OTP generated successfully",
-      otp: otpCode, // show OTP in response for testing (remove in production)
+      message: `OTP sent successfully to ${email}`,
     });
   } catch (error) {
-    console.error("Error generating OTP:", error);
-    res.status(500).json({ message: "Server error" });
+    console.error("❌ Error sending OTP:", error);
+    res.status(500).json({ message: "Server error while sending OTP." });
   }
 };
 
-// ✅ Verify OTP
+// ✅ 2️⃣ Verify OTP (Token generation only here)
 export const verifyOtp = async (req, res) => {
   try {
-    const { email, otp } = req.body;
-
-    if (!email || !otp) {
+    let { email, otp } = req.body;
+    if (!email || !otp)
       return res.status(400).json({ message: "Email and OTP required" });
-    }
 
+    email = email.toLowerCase().trim();
     const otpRecord = await OTP.findOne({ email });
-    if (!otpRecord) return res.status(400).json({ message: "OTP not found" });
+    if (!otpRecord)
+      return res.status(400).json({ message: "OTP not found" });
 
-    if (otpRecord.code.toString() !== otp.toString()) {
-      return res.status(400).json({ message: "Invalid OTP" });
+    const diffMinutes =
+      (Date.now() - otpRecord.createdAt.getTime()) / 1000 / 60;
+    if (diffMinutes > OTP_EXP_MIN) {
+      await OTP.deleteOne({ email });
+      return res
+        .status(400)
+        .json({ message: "OTP expired, request a new one." });
     }
 
-    // OTP valid — create JWT token
-    const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: "1h" });
+    if (otpRecord.code !== otp.toString())
+      return res.status(400).json({ message: "Invalid OTP" });
 
-    // Optionally delete OTP after verification
+    // ✅ OTP verified — delete record
     await OTP.deleteOne({ email });
 
-    res.status(200).json({ success: true, message: "OTP verified", token });
-  } catch (error) {
-    console.error("Error verifying OTP:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-// 👩‍🏫 Register Faculty
-export const registerFaculty = async (req, res) => {
-  try {
-    const { name, email, password, department } = req.body;
-
-    if (!name || !email || !password || !department) {
-      return res.status(400).json({ message: "All fields required" });
+    // Find existing user or create student by default
+    let user = await User.findOne({ email });
+    if (!user) {
+      user = await User.create({
+        email,
+        name: email.split("@")[0],
+        role: "student",
+      });
     }
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser)
-      return res.status(400).json({ message: "User already exists" });
+    // ✅ Issue JWT only after valid OTP
+    const token = jwt.sign(
+      { email, role: user.role },
+      JWT_SECRET,
+      { expiresIn: "1h" }
+    );
 
-    const newUser = new User({
-      name,
-      email,
-      password,
-      role: "faculty",
-    });
-
-    await newUser.save();
-
-    res.status(201).json({
+    return res.status(200).json({
       success: true,
-      message: "Faculty registered successfully",
-      user: newUser,
+      message: "OTP verified successfully",
+      token,
+      user,
     });
-  } catch (error) {
-    console.error("Error registering faculty:", error);
-    res.status(500).json({ message: "Server error" });
+  } catch (err) {
+    console.error("❌ Error verifying OTP:", err);
+    res.status(500).json({ message: "Server error while verifying OTP." });
   }
 };
 
-// 🧑‍💼 Register Admin
+// ✅ 3️⃣ Register Admin
 export const registerAdmin = async (req, res) => {
   try {
     const { name, email, password } = req.body;
+    if (!name || !email || !password)
+      return res.status(400).json({ message: "All fields are required." });
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: "All fields required" });
-    }
+    const existing = await User.findOne({ email });
+    if (existing)
+      return res.status(400).json({ message: "Admin already exists." });
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser)
-      return res.status(400).json({ message: "User already exists" });
-
-    const newUser = new User({
+    const user = await User.create({
       name,
-      email,
+      email: email.toLowerCase(),
       password,
       role: "admin",
     });
 
-    await newUser.save();
+    res
+      .status(201)
+      .json({ success: true, message: "Admin registered.", user });
+  } catch (err) {
+    console.error("❌ Register Admin Error:", err);
+    res.status(500).json({ message: "Server error registering admin." });
+  }
+};
 
-    res.status(201).json({
-      success: true,
-      message: "Admin registered successfully",
-      user: newUser,
+// ✅ 4️⃣ Register Faculty (no availability field)
+export const registerFaculty = async (req, res) => {
+  try {
+    const { name, email, department, designation } = req.body;
+    if (!name || !email || !department || !designation)
+      return res.status(400).json({ message: "All fields are required." });
+
+    const existing = await User.findOne({ email });
+    if (existing)
+      return res.status(400).json({ message: "Faculty already exists." });
+
+    const user = await User.create({
+      name,
+      email: email.toLowerCase(),
+      department,
+      designation,
+      role: "faculty",
     });
-  } catch (error) {
-    console.error("Error registering admin:", error);
-    res.status(500).json({ message: "Server error" });
+
+    res
+      .status(201)
+      .json({ success: true, message: "Faculty registered.", user });
+  } catch (err) {
+    console.error("❌ Register Faculty Error:", err);
+    res.status(500).json({ message: "Server error registering faculty." });
+  }
+};
+
+// ✅ 5️⃣ Register Student
+export const registerStudent = async (req, res) => {
+  try {
+    const { name, email, department, year, section, semester } = req.body;
+    if (!name || !email || !department || !year || !section || !semester)
+      return res.status(400).json({ message: "All fields are required." });
+
+    const existing = await User.findOne({ email });
+    if (existing)
+      return res.status(400).json({ message: "Student already exists." });
+
+    const user = await User.create({
+      name,
+      email: email.toLowerCase(),
+      department,
+      year,
+      section,
+      semester,
+      role: "student",
+    });
+
+    res
+      .status(201)
+      .json({ success: true, message: "Student registered.", user });
+  } catch (err) {
+    console.error("❌ Register Student Error:", err);
+    res.status(500).json({ message: "Server error registering student." });
   }
 };

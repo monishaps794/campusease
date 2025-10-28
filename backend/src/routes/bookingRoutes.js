@@ -3,30 +3,23 @@ import express from "express";
 import {
   getAvailableClassrooms,
   createBookingRequest,
-  getMyBookings,
-  cancelBooking,
+  getBookingsByFaculty,
+  getPendingRequests,
   approveBooking,
   rejectBooking,
-  getPendingRequests,
+  cancelBooking,
   getAllBookings,
 } from "../controllers/bookingController.js";
 
 const router = express.Router();
 
-// availability
-router.get("/available", getAvailableClassrooms);
-
-// create request
+router.get("/available", getAvailableClassrooms);    // ?slot=...&date=...&day=...&branch=...
 router.post("/request", createBookingRequest);
-
-// faculty routes
-router.get("/faculty/:email", getMyBookings);
-router.delete("/:id", cancelBooking);
-
-// admin routes
+router.get("/faculty/:email", getBookingsByFaculty);
+router.get("/requests", getPendingRequests);
 router.put("/approve/:id", approveBooking);
 router.put("/reject/:id", rejectBooking);
-router.get("/requests", getPendingRequests);
+router.delete("/:id", cancelBooking);
 router.get("/all", getAllBookings);
 
 export default router;

@@ -1,19 +1,28 @@
-// backend/src/routes/timetable.js
-import express from 'express';
+// backend/src/routes/timetableRoutes.js
+import express from "express";
+import { getTimetableForSectionDay } from "../controllers/timetableController.js";
+import Timetable from "../models/Timetable.js";
+
 const router = express.Router();
 
-// Example timetable route
-router.get('/:branch/:year/:section', async (req, res) => {
-  const { branch, year, section } = req.params;
-  const { day } = req.query;
+// POST /timetable/upload
+router.post("/upload", async (req, res) => {
+  try {
+    const data = req.body;
+    if (!Array.isArray(data)) {
+      return res.status(400).json({ message: "Array required" });
+    }
 
-  // Temporary sample data (replace later with DB)
-  const sampleTimetable = [
-    { time: '9:00 - 10:00', subject: 'Math', faculty: 'Mr. Sharma' },
-    { time: '10:00 - 11:00', subject: 'Physics', faculty: 'Ms. Priya' },
-  ];
-
-  res.json(sampleTimetable);
+    await Timetable.deleteMany({}); // clear all old timetables
+    const inserted = await Timetable.insertMany(data);
+    res.json({ success: true, count: inserted.length });
+  } catch (err) {
+    console.error("Timetable upload error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
 });
+
+// GET /timetable/:branch/:year/:section/:day
+router.get("/:branch/:year/:section/:day", getTimetableForSectionDay);
 
 export default router;

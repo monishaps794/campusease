@@ -1,18 +1,20 @@
+// backend/src/models/Timetable.js
 import mongoose from "mongoose";
 
+const slotSchema = new mongoose.Schema({
+  timeSlot: { type: String, required: true },
+  subjectName: { type: String, required: true },
+  facultyName: { type: String, required: true },
+  classroom: String,
+  type: String,
+});
+
 const timetableSchema = new mongoose.Schema({
-  branch: String,
-  year: String,
-  section: String,
-  day: String,
-  slots: [
-    {
-      timeSlot: String,  // e.g., "9:00-10:00"
-      classroom: String, // classroom number
-      faculty: String,
-      subject: String,
-    },
-  ],
+  branch: { type: String, required: true },
+  year: { type: String, required: true },
+  section: { type: String, required: true },
+  day: { type: String, required: true },
+  slots: [slotSchema],
 });
 
 export default mongoose.model("Timetable", timetableSchema);

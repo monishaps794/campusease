@@ -1,52 +1,25 @@
-// src/screens/StudentHome.js
-import React, { useEffect, useState } from 'react';
-import { View, Text, Button, StyleSheet, Platform } from 'react-native';
-import { getUser } from '../utilis/storage';
+import React from "react";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import LogoutButton from "../components/LogoutButton";
 
 export default function StudentHome({ navigation }) {
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    (async () => {
-      const u = await getUser();
-      setUser(u);
-    })();
-  }, []);
-
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Student Home</Text>
-      <Text style={styles.name}>Name: {user?.name || user?.email}</Text>
-
-      <View style={styles.buttonWrapper}>
-        <Button title="Time Table" onPress={() => navigation.navigate('Timetable')} />
-        <View style={{ height: 10 }} />
-        <Button title="Staff Rooms" onPress={() => navigation.navigate('StaffRooms')} />
-        <View style={{ height: 10 }} />
-        <Button title="Notifications" onPress={() => navigation.navigate('Notifications')} />
-      </View>
+      <Text style={styles.title}>Student Dashboard</Text>
+      <TouchableOpacity style={styles.card} onPress={() => navigation.navigate("Timetable")}>
+        <Text style={styles.cardText}>View Timetable</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.card} onPress={() => navigation.navigate("MyBookings")}>
+        <Text style={styles.cardText}>My Bookings</Text>
+      </TouchableOpacity>
+      <LogoutButton navigation={navigation} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    padding: 20, 
-    backgroundColor: '#fff',
-    ...Platform.select({
-      web: {
-        boxShadow: '0px 1px 3px rgba(0,0,0,0.2)', // replaces deprecated shadow props
-        pointerEvents: 'auto', // replaces deprecated props.pointerEvents
-      }
-    })
-  },
-  title: { fontSize: 22, fontWeight: 'bold' },
-  name: { marginTop: 8, fontSize: 16 },
-  buttonWrapper: {
-    marginTop: 15,
-    ...Platform.select({
-      web: { pointerEvents: 'auto' }, // ensures web buttons don't throw pointerEvents warnings
-    })
-  }
+  container: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#f8f9fa" },
+  title: { fontSize: 26, fontWeight: "bold", marginBottom: 20 },
+  card: { backgroundColor: "#007AFF", padding: 20, borderRadius: 12, marginVertical: 8, width: "80%" },
+  cardText: { color: "#fff", textAlign: "center", fontWeight: "bold", fontSize: 18 },
 });

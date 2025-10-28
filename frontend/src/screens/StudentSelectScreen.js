@@ -1,114 +1,103 @@
-// src/screens/StudentSelectScreen.js
-import React, { useEffect, useState } from 'react';
-import { View, Text, Button, Alert, StyleSheet, Platform } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
-import { getUser, saveUser } from '../utilis/storage';
-import api from '../api';
+// frontend/src/screens/StudentSelectScreen.js
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  Picker,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  Platform,
+} from "react-native";
+import { getUser, saveUser } from "../utils/storage";
 
 export default function StudentSelectScreen({ navigation }) {
-  const [branch, setBranch] = useState('CSE');
-  const [year, setYear] = useState('1');
-  const [section, setSection] = useState('A');
-  const [user, setUser] = useState(null);
+  const [department, setDepartment] = useState("");
+  const [semester, setSemester] = useState("");
 
-  useEffect(() => {
-    (async () => {
-      const u = await getUser();
-      setUser(u);
-    })();
-  }, []);
-
-  const saveSelection = async () => {
-    if (!branch || !year || !section) {
-      Alert.alert('Error', 'Please select all fields');
+  const handleContinue = async () => {
+    if (!department || !semester) {
+      Alert.alert("Missing Info", "Please select both department and semester.");
       return;
     }
-    const updatedUser = { ...user, branch, year, section };
+
+    const user = await getUser();
+    const updatedUser = { ...user, department, semester };
     await saveUser(updatedUser);
-    Alert.alert('Saved');
-    navigation.navigate('StudentHome');
+
+    Alert.alert("Saved", "Your preferences have been saved.");
+    navigation.replace("StudentHome");
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Select Section Details</Text>
+      <Text style={styles.header}>🎓 Student Onboarding</Text>
+      <Text style={styles.sub}>Select your Department & Semester</Text>
 
-      <Text>Branch:</Text>
-      <View style={styles.pickerWrapper}>
+      <View style={styles.pickerContainer}>
+        <Text style={styles.label}>Department</Text>
         <Picker
-          selectedValue={branch}
-          onValueChange={setBranch}
+          selectedValue={department}
+          onValueChange={(value) => setDepartment(value)}
           style={styles.picker}
         >
-          <Picker.Item label="CSE" value="CSE" />
-          <Picker.Item label="ECE" value="ECE" />
-          <Picker.Item label="ME" value="ME" />
+          <Picker.Item label="-- Select Department --" value="" />
+          <Picker.Item label="Computer Science" value="CSE" />
+          <Picker.Item label="Electronics" value="ECE" />
+          <Picker.Item label="Mechanical" value="ME" />
+          <Picker.Item label="Civil" value="CE" />
         </Picker>
       </View>
 
-      <Text>Year:</Text>
-      <View style={styles.pickerWrapper}>
+      <View style={styles.pickerContainer}>
+        <Text style={styles.label}>Semester</Text>
         <Picker
-          selectedValue={year}
-          onValueChange={setYear}
+          selectedValue={semester}
+          onValueChange={(value) => setSemester(value)}
           style={styles.picker}
         >
+          <Picker.Item label="-- Select Semester --" value="" />
           <Picker.Item label="1" value="1" />
           <Picker.Item label="2" value="2" />
           <Picker.Item label="3" value="3" />
           <Picker.Item label="4" value="4" />
+          <Picker.Item label="5" value="5" />
+          <Picker.Item label="6" value="6" />
+          <Picker.Item label="7" value="7" />
+          <Picker.Item label="8" value="8" />
         </Picker>
       </View>
 
-      <Text>Section:</Text>
-      <View style={styles.pickerWrapper}>
-        <Picker
-          selectedValue={section}
-          onValueChange={setSection}
-          style={styles.picker}
-        >
-          <Picker.Item label="A" value="A" />
-          <Picker.Item label="B" value="B" />
-          <Picker.Item label="C" value="C" />
-        </Picker>
-      </View>
-
-      <View style={styles.buttonWrapper}>
-        <Button title="Save & Continue" onPress={saveSelection} />
-      </View>
+      <TouchableOpacity style={styles.btn} onPress={handleContinue}>
+        <Text style={styles.btnText}>Continue →</Text>
+      </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    padding: 20, 
-    backgroundColor: '#fff',
-    ...Platform.select({
-      web: {
-        boxShadow: '0px 1px 3px rgba(0,0,0,0.2)',
-        pointerEvents: 'auto', // fixes web pointerEvents warning
-      }
-    })
+  container: {
+    flex: 1,
+    backgroundColor: "#f8fafc",
+    padding: 20,
+    justifyContent: "center",
   },
-  title: { fontSize: 20, fontWeight: 'bold', marginBottom: 15 },
-  pickerWrapper: {
-    ...Platform.select({
-      web: { 
-        borderWidth: 1, 
-        borderColor: '#ccc', 
-        borderRadius: 5, 
-        marginBottom: 10,
-        pointerEvents: 'auto' // fix web pointerEvents warning
-      },
-    }),
+  header: { fontSize: 22, fontWeight: "bold", marginBottom: 10 },
+  sub: { fontSize: 16, color: "#555", marginBottom: 20 },
+  pickerContainer: { marginBottom: 15 },
+  label: { fontSize: 15, marginBottom: 5 },
+  picker: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 6,
+    backgroundColor: "#fff",
+    ...Platform.select({ web: { cursor: "pointer" } }),
   },
-  picker: { height: 50, width: '100%' },
-  buttonWrapper: {
-    marginTop: 15,
-    ...Platform.select({
-      web: { pointerEvents: 'auto' }, // fix web pointerEvents warning
-    }),
+  btn: {
+    backgroundColor: "#007bff",
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 20,
   },
+  btnText: { color: "#fff", fontSize: 16, textAlign: "center" },
 });

@@ -1,49 +1,42 @@
-// src/screens/OTPVerifyScreen.js
-import React, { useState } from 'react';
-import { View, Text, TextInput, Button, Alert, StyleSheet, Platform } from 'react-native';
-import axios from 'axios';
-import { saveToken, saveUser } from '../utilis/storage';
+// frontend/src/screens/OTPVerifyScreen.js
+import React, { useState } from "react";
+import { View, Text, TextInput, Button, Alert, StyleSheet, Platform } from "react-native";
+import axios from "axios";
+import { saveAuthData } from "../utils/storage";
 
 export default function OTPVerifyScreen({ route, navigation }) {
   const email = route.params?.email;
-  const [otp, setOtp] = useState('');
+  const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
 
   const verifyOtp = async () => {
     if (!otp.trim()) {
-      Alert.alert('Error', 'Please enter OTP');
+      Alert.alert("Error", "Please enter OTP");
       return;
     }
 
     try {
       setLoading(true);
+      const res = await axios.post("http://192.168.31.180:5000/auth/verify-otp", { email, otp });
 
-      // ✅ Make POST request using axios
-      const response = await axios.post('http://192.168.31.180:5000/auth/verify-otp', {
-        email,
-        code: otp,
-      });
-
-      const { token, user } = response.data;
-
-      if (token && user) {
-        // ✅ Save token and user in local storage
-        await saveToken(token);
-        await saveUser(user);
-
-        Alert.alert('Success', 'OTP Verified Successfully');
-
-        // ✅ Navigate user based on their role
-        if (user.role === 'student') navigation.replace('StudentSelect');
-        else if (user.role === 'faculty') navigation.replace('FacultyHome');
-        else if (user.role === 'admin') navigation.replace('AdminHome');
-        else navigation.replace('Login');
-      } else {
-        Alert.alert('Error', 'Invalid server response');
+      const { success, token, user, message } = res.data;
+      if (!success) {
+        Alert.alert("Error", message || "Verification failed");
+        return;
       }
+
+      // ✅ unified storage (token + user)
+      await saveAuthData({ token, user });
+
+      Alert.alert("Success", "OTP verified successfully");
+
+      // ✅ role-based redirect
+      if (user?.role === "admin") navigation.replace("AdminHome");
+      else if (user?.role === "faculty") navigation.replace("FacultyHome");
+      else navigation.replace("StudentHome");
     } catch (error) {
-      console.error('❌ OTP Verify Error:', error.response?.data || error.message);
-      Alert.alert('Error', error.response?.data?.message || 'Invalid or expired OTP');
+      console.error("❌ OTP Verify Error:", error.response?.data || error.message);
+      Alert.alert("Error", error.response?.data?.message || "Invalid or expired OTP");
     } finally {
       setLoading(false);
     }
@@ -53,46 +46,40 @@ export default function OTPVerifyScreen({ route, navigation }) {
     <View style={styles.container}>
       <Text style={styles.title}>Enter OTP sent to {email}</Text>
       <TextInput
+        style={styles.input}
         placeholder="Enter OTP"
+        keyboardType="numeric"
         value={otp}
         onChangeText={setOtp}
-        keyboardType="numeric"
-        style={styles.input}
       />
-      <View style={styles.buttonWrapper}>
-        <Button title={loading ? 'Verifying...' : 'Verify OTP'} onPress={verifyOtp} disabled={loading} />
-      </View>
+      <Button
+        title={loading ? "Verifying..." : "Verify OTP"}
+        onPress={verifyOtp}
+        disabled={loading}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    padding: 20, 
-    backgroundColor: '#fff', 
-    justifyContent: 'center',
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    padding: 20,
+    backgroundColor: "#fff",
     ...Platform.select({
-      web: {
-        pointerEvents: 'auto',
-        boxShadow: '0px 1px 3px rgba(0,0,0,0.2)',
-      },
+      web: { pointerEvents: "auto" },
     }),
   },
-  title: { fontSize: 18, fontWeight: 'bold', marginBottom: 15 },
+  title: { fontSize: 18, fontWeight: "bold", marginBottom: 15 },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
+    borderRadius: 6,
     padding: 10,
     marginBottom: 15,
-    borderRadius: 5,
     ...Platform.select({
-      web: { pointerEvents: 'auto' },
-    }),
-  },
-  buttonWrapper: {
-    ...Platform.select({
-      web: { pointerEvents: 'auto' },
+      web: { pointerEvents: "auto" },
     }),
   },
 });

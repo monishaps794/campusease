@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import connectDB from "./src/config/db.js";
 
+
 // routes (ensure files exist)
 import authRoutes from "./src/routes/auth.js";
 import facultyRoutes from "./src/routes/faculty.js";
@@ -15,6 +16,9 @@ import timetableRoutes from "./src/routes/timetable.js";
 import notificationRoutes from "./src/routes/notification.js";
 import bookingRoutes from "./src/routes/bookingRoutes.js";
 import uploadRoutes from "./src/routes/uploadRoutes.js";
+import userRoutes from "./src/routes/user.js";
+import allocatorRoutes from "./src/routes/allocatorRoutes.js";
+import classroomRoutes from "./src/routes/classroomRoutes.js";
 
 dotenv.config();
 connectDB();
@@ -26,8 +30,12 @@ app.use(
     origin: [
       "http://localhost:19006",
       "http://192.168.31.180:19006",
+      "http://localhost:8081",       // ✅ Added for web version
+      "http://192.168.31.180:8081",  // ✅ Added for LAN access
       // add your frontend origin(s)
     ],
+     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   })
 );
@@ -48,8 +56,11 @@ app.use("/timetable", timetableRoutes);
 app.use("/notifications", notificationRoutes);
 app.use("/bookings", bookingRoutes);
 app.use("/upload", uploadRoutes);
+app.use("/users", userRoutes);
+app.use("/allocator", allocatorRoutes);
+app.use("/classrooms", classroomRoutes);
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`✅ Server running on http://0.0.0.0:${PORT}`);
+app.listen(PORT, "192.168.31.180", () => {
+  console.log(`✅ Server running on http://192.168.31.180:${PORT}`);
 });

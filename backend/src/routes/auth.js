@@ -1,12 +1,22 @@
-// src/routes/auth.js
-import express from 'express';
-import { requestOtp, verifyOtp, registerFaculty, registerAdmin } from '../controllers/authController.js';
+// backend/src/routes/auth.js
+import express from "express";
+import {
+  requestOtp,
+  verifyOtp,
+  registerAdmin,
+  registerFaculty,
+  registerStudent,
+} from "../controllers/authController.js";
 
 const router = express.Router();
 
-router.post('/request-otp', requestOtp);
-router.post('/verify-otp', verifyOtp);
-router.post('/register-faculty', registerFaculty);
-router.post('/register-admin', registerAdmin);
+// OTP routes
+router.post("/request-otp", requestOtp);
+router.post("/verify-otp", verifyOtp);
+
+// Registration routes
+router.post("/register-admin", registerAdmin);
+router.post("/register-faculty", registerFaculty);
+router.post("/register-student", registerStudent);
 
 export default router;

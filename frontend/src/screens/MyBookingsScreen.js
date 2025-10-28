@@ -1,83 +1,63 @@
-// campusease-mobile/src/screens/MyBookingsScreen.js
+// frontend/src/screens/MyBookingsScreen.js
 import React, { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, Alert, ScrollView, RefreshControl } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, Alert, ActivityIndicator, StyleSheet } from "react-native";
 import api from "../api";
+import { getAuthData } from "../utils/storage";
 
-export default function MyBookingsScreen({ route, navigation }) {
-  const email = route?.params?.email || "faculty@example.com";
+export default function MyBookingsScreen() {
   const [bookings, setBookings] = useState([]);
-  const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const load = async () => {
-    setRefreshing(true);
+  const fetch = async () => {
     try {
-      const data = await api.getMyBookings(email);
-      setBookings(Array.isArray(data) ? data : []);
+      setLoading(true);
+      const { user } = await getAuthData();
+      const res = await api.getMyBookings(user?.email);
+      if (res && res.success) setBookings(res.bookings || []);
     } catch (err) {
-      console.error(err);
-      Alert.alert("Error", "Failed to load bookings");
+      console.error("fetch my bookings:", err);
+      Alert.alert("Error", err.message || "Failed");
     } finally {
-      setRefreshing(false);
+      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { fetch(); }, []);
 
   const cancel = async (id) => {
-    Alert.alert("Confirm", "Cancel this booking request?", [
-      { text: "No" },
-      {
-        text: "Yes",
-        onPress: async () => {
-          try {
-            const res = await api.cancelBooking(id);
-            Alert.alert("Cancelled", res.message || "Booking cancelled");
-            load();
-          } catch (err) {
-            console.error(err);
-            Alert.alert("Error", "Failed to cancel");
-          }
-        },
-      },
-    ]);
+    try {
+      await api.del(`/bookings/${id}`);
+      Alert.alert("Cancelled");
+      fetch();
+    } catch (err) {
+      console.error("cancel err:", err);
+      Alert.alert("Error", err.message || "Failed to cancel");
+    }
   };
 
+  if (loading) return <ActivityIndicator style={{ marginTop: 40 }} />;
+
   return (
-    <ScrollView
-      style={{ padding: 20 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} />}
-    >
-      <Text style={{ fontSize: 22, fontWeight: "bold", marginBottom: 12 }}>My Booking Requests</Text>
-
-      {!bookings.length && <Text>No bookings found.</Text>}
-
-      {bookings.map((b) => (
-        <View
-          key={b._id}
-          style={{
-            backgroundColor: "#fff",
-            padding: 12,
-            borderRadius: 8,
-            marginBottom: 10,
-            borderLeftWidth: 6,
-            borderLeftColor: b.status === "approved" ? "green" : b.status === "rejected" ? "red" : "orange",
-          }}
-        >
-          <Text style={{ fontWeight: "600" }}>{b.roomNumber || b.roomId?.roomNumber || b.roomId}</Text>
-          <Text>Date: {b.date}</Text>
-          <Text>Slot: {b.slot}</Text>
-          <Text>Status: {b.status}</Text>
-          {b.reason && <Text>Reason: {b.reason}</Text>}
-
-          {b.status === "pending" && (
-            <TouchableOpacity onPress={() => cancel(b._id)} style={{ marginTop: 8, backgroundColor: "#e63946", padding: 8, borderRadius: 6 }}>
-              <Text style={{ color: "#fff", textAlign: "center" }}>Cancel</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      ))}
-    </ScrollView>
+    <View style={{ flex:1, padding:12 }}>
+      <Text style={{ fontSize:18, fontWeight:"bold" }}>My Bookings</Text>
+      <FlatList
+        data={bookings}
+        keyExtractor={i => i._id}
+        renderItem={({item}) => (
+          <View style={styles.card}>
+            <Text>Room: {item.roomId?.roomNumber || item.roomId}</Text>
+            <Text>Date: {item.date} Slot: {item.slot}</Text>
+            <Text>Status: {item.status}</Text>
+            <TouchableOpacity onPress={() => cancel(item._id)} style={styles.btn}><Text style={{color:"#fff"}}>Cancel</Text></TouchableOpacity>
+          </View>
+        )}
+        ListEmptyComponent={<Text style={{ marginTop:20, textAlign:"center" }}>No bookings</Text>}
+      />
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  card: { backgroundColor:"#fff", padding:12, marginVertical:8, borderRadius:8, elevation:2 },
+  btn: { backgroundColor:"#e63946", padding:8, marginTop:8, alignItems:"center", borderRadius:6 }
+});

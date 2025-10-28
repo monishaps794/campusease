@@ -1,139 +1,169 @@
-// campusease-mobile/src/screens/BookingScreen.js
+// frontend/src/screens/BookingScreen.js
 import React, { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  Alert,
-  ScrollView,
-  ActivityIndicator,
-  RefreshControl,
-} from "react-native";
-import api from "../api";
+import { View, Text, TouchableOpacity, Alert, StyleSheet, FlatList } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import api from "../api"; // default export
+import { getAuthData } from "../utils/storage";
 
-export default function BookingScreen({ navigation, route }) {
-  const facultyEmail = route?.params?.email || "faculty@example.com";
+export default function BookingScreen({ navigation }) {
+  const [branch, setBranch] = useState("ISE");
+  const [year, setYear] = useState("3");
+  const [section, setSection] = useState("A");
+  const [slot, setSlot] = useState("8:30-9:30");
+  const [date, setDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [availableRooms, setAvailableRooms] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [facultyEmail, setFacultyEmail] = useState("");
 
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [classrooms, setClassrooms] = useState([]);
-  const [selectedRoom, setSelectedRoom] = useState("");
-  const [date, setDate] = useState("");
-  const [slot, setSlot] = useState("");
-  const [branch, setBranch] = useState("");
-  const [year, setYear] = useState("");
-  const [section, setSection] = useState("");
-  const [reason, setReason] = useState("");
+  const slotOptions = [
+    "8:30-9:30",
+    "9:30-10:30",
+    "11:00-12:00",
+    "12:00-1:00",
+    "2:00-3:00",
+    "3:00-4:00"
+  ];
 
-  const fetchRooms = async (params = {}) => {
+  useEffect(() => {
+    (async () => {
+      const { user } = await getAuthData();
+      if (user?.email) setFacultyEmail(user.email);
+    })();
+  }, []);
+
+  const formattedDate = date.toISOString().split("T")[0];
+
+  const fetchAvailableRooms = async () => {
     try {
       setLoading(true);
-      const data = await api.getAvailableRooms(params);
-      setClassrooms(Array.isArray(data) ? data : []);
+      const res = await api.getAvailableRooms({ branch, year, section, date: formattedDate, slot });
+      // res is { success, available }
+      if (res && res.success) {
+        setAvailableRooms(res.available || []);
+      } else {
+        Alert.alert("Error", res.message || "Failed to load.");
+      }
     } catch (err) {
-      console.error(err);
-      Alert.alert("Error", "Failed to fetch available rooms");
+      console.error("fetchAvailableRooms error:", err);
+      Alert.alert("Error", err.message || "Network error");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchRooms();
-  }, []);
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchRooms();
-    setRefreshing(false);
-  };
-
-  const handleSubmit = async () => {
-    if (!selectedRoom || !date || !slot) {
-      Alert.alert("Validation", "Please select room, date and time slot");
-      return;
-    }
+  const handleRequest = async (room) => {
     try {
+      setLoading(true);
+      // Pass the real _id of the classroom
       const payload = {
-        roomId: selectedRoom,
-        date,
+        roomId: room._id,
+        date: formattedDate,
         slot,
         branch,
         year,
         section,
-        reason,
-        requestedBy: facultyEmail,
+        reason: "Classroom booking",
+        requestedBy: facultyEmail || "unknown",
       };
       const res = await api.requestBooking(payload);
-      Alert.alert("Success", res.message || "Request sent to admin");
-      navigation.navigate("MyBookings", { email: facultyEmail });
+      if (res && res.success) {
+        Alert.alert("Success", "Booking request sent");
+      } else {
+        Alert.alert("Error", res.message || "Failed to create booking");
+      }
     } catch (err) {
-      console.error(err);
-      Alert.alert("Error", "Failed to create booking request");
+      console.error("handleRequest error:", err);
+      Alert.alert("Error", err.message || "Network error");
+    } finally {
+      setLoading(false);
     }
   };
 
+  const renderRoom = ({ item }) => (
+    <TouchableOpacity style={styles.roomCard} onPress={() => handleRequest(item)} disabled={loading}>
+      <Text style={styles.roomName}>{item.roomNumber}</Text>
+      <Text>Type: {item.type || "Classroom"}</Text>
+      <Text>Capacity: {item.capacity || "-"}</Text>
+      <Text>Status: {item.status || "Available"}</Text>
+    </TouchableOpacity>
+  );
+
   return (
-    <ScrollView
-      contentContainerStyle={{ padding: 20 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-    >
-      <Text style={{ fontSize: 22, fontWeight: "bold", marginBottom: 12 }}>Book a Classroom</Text>
+    <View style={styles.container}>
+      <Text style={styles.heading}>Book Classroom</Text>
 
-      {loading ? (
-        <ActivityIndicator size="large" color="#007bff" />
-      ) : (
-        <>
-          <Text style={{ marginBottom: 8 }}>Choose an available classroom</Text>
-          {classrooms.length === 0 && <Text style={{ marginBottom: 8 }}>No available rooms right now.</Text>}
+      {/* branch/year/section simple selects */}
+      <View style={styles.row}>
+        <Text style={styles.label}>Branch</Text>
+        <View style={styles.pillRow}>
+          <TouchableOpacity style={[styles.pill, branch === "ISE" && styles.pillSelected]} onPress={() => setBranch("ISE")}>
+            <Text style={branch === "ISE" ? styles.pillTextSelected : styles.pillText}>ISE</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
 
-          {classrooms.map((r) => (
-            <TouchableOpacity
-              key={r._id}
-              onPress={() => setSelectedRoom(r._id)}
-              style={{
-                padding: 10,
-                borderRadius: 8,
-                backgroundColor: selectedRoom === r._id ? "#007bff" : "#f2f2f2",
-                marginBottom: 8,
-              }}
-            >
-              <Text style={{ color: selectedRoom === r._id ? "#fff" : "#000", fontWeight: "600" }}>
-                {r.roomNumber || r.room || r._id} {r.blockName ? ` - ${r.blockName}` : ""} (cap: {r.capacity || "N/A"})
-              </Text>
+      <View style={styles.row}>
+        <Text style={styles.label}>Year</Text>
+        <View style={styles.pillRow}>
+          {["1","2","3","4"].map(y => (
+            <TouchableOpacity key={y} style={[styles.pill, year===y && styles.pillSelected]} onPress={() => setYear(y)}>
+              <Text style={year===y?styles.pillTextSelected:styles.pillText}>{y}</Text>
             </TouchableOpacity>
           ))}
+        </View>
+      </View>
 
-          <TextInput placeholder="Date (YYYY-MM-DD)" value={date} onChangeText={setDate} style={styles.input} />
-          <TextInput placeholder="Time slot (eg. 9:00-10:00)" value={slot} onChangeText={setSlot} style={styles.input} />
-          <TextInput placeholder="Branch" value={branch} onChangeText={setBranch} style={styles.input} />
-          <TextInput placeholder="Year" value={year} onChangeText={setYear} style={styles.input} />
-          <TextInput placeholder="Section" value={section} onChangeText={setSection} style={styles.input} />
-          <TextInput placeholder="Reason (optional)" value={reason} onChangeText={setReason} style={styles.input} />
+      <View style={styles.row}>
+        <Text style={styles.label}>Section</Text>
+        <View style={styles.pillRow}>
+          {["A","B","C"].map(s => (
+            <TouchableOpacity key={s} style={[styles.pill, section===s && styles.pillSelected]} onPress={() => setSection(s)}>
+              <Text style={section===s?styles.pillTextSelected:styles.pillText}>{s}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
 
-          <TouchableOpacity onPress={handleSubmit} style={styles.button}>
-            <Text style={{ color: "#fff", fontWeight: "bold" }}>Send Request</Text>
-          </TouchableOpacity>
-        </>
+      <View style={styles.row}>
+        <Text style={styles.label}>Slot</Text>
+        <View style={styles.pillRow}>
+          {slotOptions.map(s => (
+            <TouchableOpacity key={s} style={[styles.pill, slot===s && styles.pillSelected]} onPress={() => setSlot(s)}>
+              <Text style={slot===s?styles.pillTextSelected:styles.pillText}>{s}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.dateBtn}>
+        <Text>📅 {formattedDate}</Text>
+      </TouchableOpacity>
+      {showDatePicker && (
+        <DateTimePicker value={date} mode="date" onChange={(e, d) => { setShowDatePicker(false); if (d) setDate(d); }} />
       )}
-    </ScrollView>
+
+      <TouchableOpacity style={styles.fetchBtn} onPress={fetchAvailableRooms} disabled={loading}>
+        <Text style={{ color: "#fff" }}>{loading ? "Loading..." : "Find Available Rooms"}</Text>
+      </TouchableOpacity>
+
+      <FlatList data={availableRooms} renderItem={renderRoom} keyExtractor={i => i._id} ListEmptyComponent={<Text style={{ textAlign: "center", marginTop: 20 }}>No rooms available</Text>} />
+    </View>
   );
 }
 
-const styles = {
-  input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    padding: 10,
-    borderRadius: 8,
-    marginVertical: 8,
-  },
-  button: {
-    backgroundColor: "#007bff",
-    padding: 14,
-    borderRadius: 8,
-    marginTop: 12,
-    alignItems: "center",
-  },
-};
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 12, backgroundColor: "#fff" },
+  heading: { textAlign: "center", fontSize: 20, fontWeight: "bold", marginVertical: 8 },
+  row: { marginVertical: 8 },
+  label: { fontWeight: "bold", marginBottom: 6 },
+  pillRow: { flexDirection: "row", flexWrap: "wrap" },
+  pill: { borderWidth: 1, borderColor: "#ccc", padding: 8, borderRadius: 8, marginRight: 8, marginBottom: 6 },
+  pillSelected: { backgroundColor: "#007AFF", borderColor: "#007AFF" },
+  pillText: { color: "#333" },
+  pillTextSelected: { color: "#fff" },
+  dateBtn: { padding: 10, backgroundColor: "#eee", borderRadius: 8, alignItems: "center", marginVertical: 8 },
+  fetchBtn: { backgroundColor: "#28a745", padding: 12, borderRadius: 8, alignItems: "center", marginVertical: 8 },
+  roomCard: { backgroundColor: "#f2f4f7", padding: 12, borderRadius: 8, marginVertical: 6 },
+  roomName: { fontWeight: "bold", marginBottom: 4 }
+});
