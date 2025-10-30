@@ -17,7 +17,7 @@ export default function OTPVerifyScreen({ route, navigation }) {
 
     try {
       setLoading(true);
-      const res = await axios.post("http://192.168.31.180:5000/auth/verify-otp", { email, otp });
+      const res = await axios.post("http://10.242.24.77:5000/auth/verify-otp", { email, otp });
 
       const { success, token, user, message } = res.data;
       if (!success) {

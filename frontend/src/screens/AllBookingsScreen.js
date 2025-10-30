@@ -12,8 +12,10 @@ export default function AllBookingsScreen() {
       setLoading(true);
       const res = await api.getAllBookings();
       if (res && res.success) setBookings(res.bookings || []);
+      else setBookings([]);
     } catch (err) {
-      console.error("Fetch all bookings error:", err);
+      console.error("❌ Fetch all bookings error:", err);
+      setBookings([]);
     } finally {
       setLoading(false);
     }
@@ -21,17 +23,17 @@ export default function AllBookingsScreen() {
 
   useEffect(() => { fetchAllBookings(); }, []);
 
-  if (loading) return <ActivityIndicator style={{ marginTop:40 }} />;
+  if (loading) return <ActivityIndicator size="large" style={{ marginTop: 40 }} />;
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>All Bookings</Text>
       <FlatList
         data={bookings}
-        keyExtractor={i => i._id}
-        renderItem={({item}) => (
+        keyExtractor={(item) => item._id}
+        renderItem={({ item }) => (
           <View style={styles.card}>
-            <Text style={styles.room}>Room: {item.roomId?.roomNumber || item.roomId}</Text>
+            <Text style={styles.room}>Room: {item.roomId?.roomNumber || (item.roomId?._id || item.roomId)}</Text>
             <Text>Date: {item.date}</Text>
             <Text>Slot: {item.slot}</Text>
             <Text>Requested By: {item.requestedBy}</Text>

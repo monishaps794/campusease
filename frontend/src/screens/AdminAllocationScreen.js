@@ -1,56 +1,50 @@
-// frontend/src/screens/AdminAllocationScreen.js
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from "react-native";
-import api from "../api";
+import { View, Text, Button, ScrollView } from "react-native";
+import api from "../api"; // ✅ this must match your api.js path
 
-export default function AdminAllocationScreen() {
+const AdminAllocationScreen = () => {
+  const [allocResult, setAllocResult] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState("");
+  const [error, setError] = useState(null);
 
-  const handleAutoAllocate = async () => {
+  const runAllocator = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setResult("");
-      const res = await api.post("/allocator/auto");
-      if (res.data.success) {
-        setResult(res.data.message);
-        Alert.alert("Success", res.data.message);
-      } else {
-        Alert.alert("Error", res.data.message || "Auto allocation failed");
-      }
+      // ✅ use the helper function, not api.post
+      const res = await api.autoAllocate();
+      console.log("Allocator success:", res);
+      setAllocResult(res.allocation || {});
     } catch (err) {
-      console.error("auto allocate error:", err);
-      Alert.alert("Error", err.response?.data?.message || err.message);
+      console.error("Allocator error:", err);
+      setError("Allocation failed.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.heading}>Auto Classroom Allocation</Text>
-      <TouchableOpacity
-        style={[styles.button, loading && { opacity: 0.7 }]}
-        onPress={handleAutoAllocate}
-        disabled={loading}
-      >
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Run Auto Allocation</Text>}
-      </TouchableOpacity>
-      {result ? <Text style={styles.result}>{result}</Text> : null}
-    </View>
-  );
-}
+    <ScrollView style={{ flex: 1, padding: 16 }}>
+      <Text style={{ fontSize: 24, fontWeight: "bold", marginBottom: 12 }}>
+        🧮 Auto Allocator
+      </Text>
 
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#fff", padding: 16 },
-  heading: { fontSize: 22, fontWeight: "bold", marginBottom: 20, textAlign: "center" },
-  button: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 10,
-    marginBottom: 20,
-  },
-  btnText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
-  result: { textAlign: "center", fontSize: 16, color: "#333", paddingHorizontal: 20 },
-});
+      <Button title={loading ? "Running..." : "Run Allocator"} onPress={runAllocator} disabled={loading} />
+
+      {error && <Text style={{ color: "red", marginTop: 12 }}>❌ {error}</Text>}
+
+      {allocResult && Object.keys(allocResult).length > 0 && (
+        <View style={{ marginTop: 16 }}>
+          <Text style={{ fontWeight: "bold", marginBottom: 8 }}>✅ Allocation Result:</Text>
+          {Object.entries(allocResult).map(([section, rooms]) => (
+            <Text key={section} style={{ marginBottom: 4 }}>
+              {section}: {typeof rooms === "string" ? rooms : JSON.stringify(rooms)}
+            </Text>
+          ))}
+        </View>
+      )}
+    </ScrollView>
+  );
+};
+
+export default AdminAllocationScreen;

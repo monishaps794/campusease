@@ -19,7 +19,7 @@ export default function LoginScreen({ navigation }) {
 
     try {
       setLoading(true);
-      const res = await axios.post("http://192.168.31.180:5000/auth/request-otp", {
+      const res = await axios.post("http://10.242.24.77:5000/auth/request-otp", {
         email,
       });
 

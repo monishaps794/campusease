@@ -4,7 +4,7 @@ import { View, Text, Button, StyleSheet, ScrollView, Alert } from "react-native"
 import AllocationTable from "../components/AllocationTable";
 import axios from "axios";
 
-const BASE_URL = "http://192.168.31.180:5000";
+const BASE_URL = "http://10.242.24.77:5000";
 
 export default function FacultyAllocationScreen({ route }) {
   const facultyEmail = route.params?.email || "";

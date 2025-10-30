@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet } from "react-native";
-import { api } from "../config/api";
+import { api } from "../api";
 
 export default function RequestsScreen() {
   const [requests, setRequests] = useState([]);

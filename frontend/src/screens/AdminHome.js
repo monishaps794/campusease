@@ -1,28 +1,112 @@
+// src/screens/AdminHome.js
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import LogoutButton from "../components/LogoutButton";
+import { View, Text, TouchableOpacity, ScrollView } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 
-export default function AdminHome({ navigation }) {
+export default function AdminHome() {
+  const navigation = useNavigation();
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Admin Dashboard</Text>
-      <TouchableOpacity style={styles.card} onPress={() => navigation.navigate("AllBookings")}>
-        <Text style={styles.cardText}>View All Bookings</Text>
+    <ScrollView
+      contentContainerStyle={{
+        flexGrow: 1,
+        padding: 16,
+        backgroundColor: "#f8f9fa",
+      }}
+    >
+      <Text
+        style={{
+          fontSize: 24,
+          fontWeight: "bold",
+          marginBottom: 20,
+          textAlign: "center",
+        }}
+      >
+        🧭 Admin Dashboard
+      </Text>
+
+      <TouchableOpacity
+        onPress={() => navigation.navigate("AdminAllocation")}
+        style={{
+          backgroundColor: "#4CAF50",
+          padding: 14,
+          borderRadius: 10,
+          marginBottom: 12,
+        }}
+      >
+        <Text style={{ color: "#fff", textAlign: "center", fontSize: 16 }}>
+          Run Auto Allocator
+        </Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.card} onPress={() => navigation.navigate("Requests")}>
-        <Text style={styles.cardText}>Pending Requests</Text>
+        <TouchableOpacity
+  onPress={() => navigation.navigate("AdminTimetable")}
+  style={{
+    backgroundColor: "#2196F3",
+    padding: 14,
+    borderRadius: 10,
+    marginBottom: 12,
+  }}
+>
+  <Text style={{ color: "#fff", textAlign: "center", fontSize: 16 }}>
+    View All Timetables
+  </Text>
+</TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={() => navigation.navigate("AdminRequests")}
+        style={{
+          backgroundColor: "#007bff",
+          padding: 14,
+          borderRadius: 10,
+          marginBottom: 12,
+        }}
+      >
+        <Text style={{ color: "#fff", textAlign: "center", fontSize: 16 }}>
+          Booking Requests
+        </Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.card} onPress={() => navigation.navigate("AutoAllocator")}>
-        <Text style={styles.cardText}>Auto Allocate Classrooms</Text>
+
+      <TouchableOpacity
+        onPress={() => navigation.navigate("AllBookings")}
+        style={{
+          backgroundColor: "#9c27b0",
+          padding: 14,
+          borderRadius: 10,
+          marginBottom: 12,
+        }}
+      >
+        <Text style={{ color: "#fff", textAlign: "center", fontSize: 16 }}>
+          All Bookings
+        </Text>
       </TouchableOpacity>
-      <LogoutButton navigation={navigation} />
-    </View>
+
+      <TouchableOpacity
+        onPress={() => navigation.navigate("UploadData")}
+        style={{
+          backgroundColor: "#ff9800",
+          padding: 14,
+          borderRadius: 10,
+          marginBottom: 12,
+        }}
+      >
+        <Text style={{ color: "#fff", textAlign: "center", fontSize: 16 }}>
+          Upload Data
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={() => navigation.navigate("Login")}
+        style={{
+          backgroundColor: "#f44336",
+          padding: 14,
+          borderRadius: 10,
+          marginBottom: 12,
+        }}
+      >
+        <Text style={{ color: "#fff", textAlign: "center", fontSize: 16 }}>
+          Logout
+        </Text>
+      </TouchableOpacity>
+    </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#f8f9fa" },
-  title: { fontSize: 26, fontWeight: "bold", marginBottom: 30 },
-  card: { backgroundColor: "#007AFF", padding: 20, borderRadius: 12, marginVertical: 8, width: "80%" },
-  cardText: { color: "#fff", textAlign: "center", fontWeight: "bold", fontSize: 18 },
-});

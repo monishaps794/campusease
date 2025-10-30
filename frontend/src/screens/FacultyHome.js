@@ -16,6 +16,10 @@ export default function FacultyHome({ navigation }) {
         <Text style={styles.cardText}>My Bookings</Text>
       </TouchableOpacity>
       <LogoutButton navigation={navigation} />
+      <TouchableOpacity onPress={() => navigation.navigate("BookingStatus")}>
+  <Text>📋 View Booking Status</Text>
+</TouchableOpacity>
+
     </View>
   );
 }
