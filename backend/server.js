@@ -4,8 +4,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import connectDB from "./src/config/db.js";
 
-
-// routes (ensure files exist)
+// Routes
 import authRoutes from "./src/routes/auth.js";
 import facultyRoutes from "./src/routes/faculty.js";
 import commonRoutes from "./src/routes/common.js";
@@ -20,21 +19,24 @@ import userRoutes from "./src/routes/user.js";
 import allocatorRoutes from "./src/routes/allocatorRoutes.js";
 import classroomRoutes from "./src/routes/classroomRoutes.js";
 
-dotenv.config();
-connectDB();
 
+dotenv.config();
+
+// connect to DB
+connectDB();
+import "./src/models/index.js";
 const app = express();
 
 app.use(
   cors({
     origin: [
       "http://localhost:19006",
-      "http://192.168.31.180:19006",
-      "http://localhost:8081",       // ✅ Added for web version
-      "http://192.168.31.180:8081",  // ✅ Added for LAN access
-      // add your frontend origin(s)
+      "http://127.0.0.1:19006",
+      "http://localhost:8081",
+      "http://127.0.0.1:8081",
+      "http://10.242.24.77:8081",
     ],
-     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   })
@@ -45,7 +47,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.get("/", (req, res) => res.send("🚀 CampusEase backend running"));
 
-// mount routes
+// Mount routes
 app.use("/auth", authRoutes);
 app.use("/faculty", facultyRoutes);
 app.use("/common", commonRoutes);
@@ -60,7 +62,12 @@ app.use("/users", userRoutes);
 app.use("/allocator", allocatorRoutes);
 app.use("/classrooms", classroomRoutes);
 
+// 🟢 Safe server startup
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, "192.168.31.180", () => {
-  console.log(`✅ Server running on http://192.168.31.180:${PORT}`);
+
+// Use 0.0.0.0 so it works on localhost AND LAN
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`✅ Server running on http://localhost:${PORT}`);
+}).on("error", (err) => {
+  console.error("❌ Server failed to start:", err.message);
 });

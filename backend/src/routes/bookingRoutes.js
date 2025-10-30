@@ -1,4 +1,3 @@
-// backend/src/routes/bookingRoutes.js
 import express from "express";
 import {
   getAvailableClassrooms,
@@ -13,13 +12,13 @@ import {
 
 const router = express.Router();
 
-router.get("/available", getAvailableClassrooms);    // ?slot=...&date=...&day=...&branch=...
-router.post("/request", createBookingRequest);
-router.get("/faculty/:email", getBookingsByFaculty);
-router.get("/requests", getPendingRequests);
-router.put("/approve/:id", approveBooking);
-router.put("/reject/:id", rejectBooking);
-router.delete("/:id", cancelBooking);
-router.get("/all", getAllBookings);
+router.get("/available", getAvailableClassrooms);               // ?date=YYYY-MM-DD&slot=...&branch=..&year=..&section=..
+router.post("/request", createBookingRequest);                 // body
+router.get("/faculty/:email", getBookingsByFaculty);           // param email
+router.get("/requests", getPendingRequests);                   // pending
+router.put("/approve/:id", approveBooking);                    // param id
+router.put("/reject/:id", rejectBooking);                      // param id
+router.delete("/cancle/:id", cancelBooking);                          // param id
+router.get("/all", getAllBookings);                            // admin all bookings
 
 export default router;

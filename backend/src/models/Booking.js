@@ -1,32 +1,31 @@
-// src/models/Booking.js
+// backend/src/models/Booking.js
 import mongoose from "mongoose";
 
 const BookingSchema = new mongoose.Schema({
   roomId: { type: mongoose.Schema.Types.ObjectId, ref: "Classroom", required: true },
-  date: { type: String, required: true }, // keep as YYYY-MM-DD string for ease
-  slot: { type: String, required: true }, // e.g. "09:00-10:00"
-  requestedBy: { type: String, required: true }, // faculty email
-  branch: { type: String, default: "" }, // optional
-  year: { type: Number, default: null },
-  section: { type: String, default: "" },
-  reason: { type: String, default: "" },
+  date: { type: String, required: true }, // YYYY-MM-DD
+  slot: { type: String, required: true },
+  branch: String,
+  year: String,
+  section: String,
+  reason: String,
+  requestedBy: { type: String, required: true }, // email
   status: {
     type: String,
     enum: ["pending", "approved", "rejected", "cancelled"],
     default: "pending",
+    required: true,
   },
-  // if admin-approved: who approved and when
-  approvedBy: { type: String, default: "" },
-  createdAt: { type: Date, default: () => new Date() },
-  updatedAt: { type: Date, default: () => new Date() }
+  approvedBy: String,
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: Date,
 });
 
+// Ensure status always stored in lowercase
 BookingSchema.pre("save", function (next) {
+  if (this.status && typeof this.status === "string") this.status = this.status.toLowerCase();
   this.updatedAt = new Date();
   next();
 });
-
-// index to quickly query bookings for a date & slot
-BookingSchema.index({ date: 1, slot: 1, roomId: 1 });
 
 export default mongoose.model("Booking", BookingSchema);

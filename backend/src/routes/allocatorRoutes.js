@@ -1,8 +1,12 @@
-// backend/src/routes/allocationRoutes.js
+// src/routes/allocatorRoutes.js
 import express from "express";
-import { autoAllocate } from "../controllers/allocatorController.js";
+import { runAllocatorController,saveAllocationController } from "../controllers/allocatorController.js";
 
 const router = express.Router();
-router.get("/auto", autoAllocate);
+
+// POST or GET both supported for testing
+router.post("/run", runAllocatorController);
+router.get("/run", runAllocatorController);
+router.post("/save", saveAllocationController);
 
 export default router;
