@@ -13,6 +13,7 @@ router.post("/upload", async (req, res) => {
       return res.status(400).json({ message: "Array required" });
     }
 
+    
     await Timetable.deleteMany({}); // clear all old timetables
     const inserted = await Timetable.insertMany(data);
     res.json({ success: true, count: inserted.length });
@@ -24,5 +25,7 @@ router.post("/upload", async (req, res) => {
 
 // GET /timetable/:branch/:year/:section/:day
 router.get("/:branch/:year/:section/:day", getTimetableForSectionDay);
+//router.get("/:branch/:year/:section/week", getWeeklyTimetable);
+
 
 export default router;
