@@ -1,18 +1,14 @@
 import axios from "axios";
 
-// ✅ Your LAN backend base URL (update if your IP changes)
-const API_BASE = "http://10.242.24.77:5000";
+//const API_BASE = "http://192.168.0.103:5000";
+const API_BASE = "http://localhost:5000";
 
-// Create a reusable axios client
 const client = axios.create({
   baseURL: API_BASE,
   timeout: 20000,
-  headers: {
-    "Content-Type": "application/json",
-  },
+  headers: { "Content-Type": "application/json" },
 });
 
-// Helper to handle responses and errors
 const handle = async (promise) => {
   try {
     const res = await promise;
@@ -23,17 +19,21 @@ const handle = async (promise) => {
   }
 };
 
-// ✅ All REST endpoints grouped logically
 const api = {
   // ─── Timetable ─────────────────────────────────────────────
   getTimetable: (branch, year, section, day) =>
+    handle(client.get(`/timetable/${branch}/${year}/${section}/${day}`)),
+
+  // ─── NEW for ADMIN booking ─────────────────────────────────
+  getAvailableRoomsByDate: ({ branch, year, section, date }) =>
     handle(
-      client.get(
-        `/timetable/${encodeURIComponent(branch)}/${encodeURIComponent(
-          year
-        )}/${encodeURIComponent(section)}/${encodeURIComponent(day)}`
-      )
+      client.get(`/bookings/available-by-date`, {
+        params: { branch, year, section, date },
+      })
     ),
+
+  adminBookRoom: (payload) =>
+    handle(client.post(`/bookings/admin/book`, payload)),
 
   // ─── Classrooms ────────────────────────────────────────────
   getAvailableRooms: ({ branch, year, section, date, slot, day }) =>
@@ -47,22 +47,17 @@ const api = {
   getAllClassrooms: () => handle(client.get("/classrooms/all")),
 
   // ─── Bookings ──────────────────────────────────────────────
-  // Payload must include:
-  // { facultyEmail, classroom, date, slot, reason }
   requestBooking: (payload) =>
     handle(client.post("/bookings/request", payload)),
 
   getPendingRequests: () => handle(client.get("/bookings/requests")),
   getAllBookings: () => handle(client.get("/bookings/all")),
-
   getBookingsByFaculty: (email) =>
     handle(client.get(`/bookings/faculty/${encodeURIComponent(email)}`)),
-
   approveBooking: (id) =>
     handle(client.put(`/bookings/approve/${encodeURIComponent(id)}`)),
   rejectBooking: (id) =>
     handle(client.put(`/bookings/reject/${encodeURIComponent(id)}`)),
-
   cancelBooking: (id) =>
     handle(client.delete(`/bookings/cancel/${encodeURIComponent(id)}`)),
 
@@ -79,6 +74,5 @@ const api = {
   getAllUsers: () => handle(client.get("/users")),
 };
 
-// ✅ Export both named and default
 export { client };
 export default api;

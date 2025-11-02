@@ -20,6 +20,7 @@ import AdminAllocationScreen from "../screens/AdminAllocationScreen";
 import AllBookingsScreen from "../screens/AllBookingsScreen";
 import BookingStatusScreen from "../screens/BookingStatusScreen";
 import AdminTimetableScreen from "../screens/AdminTimetableScreen";
+import AdminBookingScreen from "../screens/AdminBookingScreen";
 
 import { getAuthData } from "../utils/storage";
 
@@ -32,6 +33,8 @@ export default function AuthNavigator() {
     (async () => {
       try {
         const { user, token } = await getAuthData();
+        console.log("AuthNavigator init - stored user:", user, "token:", token);
+
         if (token && user?.role === "admin") setInitialRoute("AdminHome");
         else if (token && user?.role === "faculty") setInitialRoute("FacultyHome");
         else if (token && user?.role === "student") setInitialRoute("StudentHome");
@@ -48,21 +51,66 @@ export default function AuthNavigator() {
   return (
     <NavigationContainer>
       <Stack.Navigator initialRouteName={initialRoute} screenOptions={{ headerShown: true }}>
-        {/* Auth */}
-        <Stack.Screen name="Login" component={LoginScreen} options={{ title: "CampusEase Login" }} />
-        <Stack.Screen name="OTPVerify" component={OTPVerifyScreen} options={{ title: "Verify OTP" }} />
+        {/* Auth Screens */}
+        <Stack.Screen
+          name="Login"
+          component={LoginScreen}
+          options={{ title: "CampusEase Login" }}
+        />
+        <Stack.Screen
+          name="OTPVerify"
+          component={OTPVerifyScreen}
+          options={{ title: "Verify OTP" }}
+        />
 
         {/* Dashboards */}
-        <Stack.Screen name="StudentHome" component={StudentHome} options={{ title: "Student Dashboard" }} />
-        <Stack.Screen name="FacultyHome" component={FacultyHome} options={{ title: "Faculty Dashboard" }} />
-        <Stack.Screen name="AdminHome" component={AdminHome} options={{ title: "Admin Dashboard" }} />
+        <Stack.Screen
+          name="StudentHome"
+          component={StudentHome}
+          options={{ title: "Student Dashboard" }}
+        />
+        <Stack.Screen
+          name="FacultyHome"
+          component={FacultyHome}
+          options={{ title: "Faculty Dashboard" }}
+        />
+        <Stack.Screen
+          name="AdminHome"
+          component={AdminHome}
+          options={{ title: "Admin Dashboard" }}
+        />
 
         {/* Admin Panels */}
-        <Stack.Screen name="AdminAllocation" component={AdminAllocationScreen} options={{ title: "Auto Allocator" }} />
-        <Stack.Screen name="AdminRequests" component={RequestsScreen} options={{ title: "Booking Requests" }} />
-        <Stack.Screen name="AllBookings" component={AllBookingsScreen} options={{ title: "All Bookings" }} />
-        <Stack.Screen name="UploadData" component={UploadDataScreen} options={{ title: "Upload Data" }} />
-        <Stack.Screen name="AdminTimetable" component={AdminTimetableScreen} options={{ title: "Timetables" }} />
+        <Stack.Screen
+          name="AdminAllocation"
+          component={AdminAllocationScreen}
+          options={{ title: "Auto Allocator" }}
+        />
+        <Stack.Screen
+          name="AdminRequests"
+          component={RequestsScreen}
+          options={{ title: "Booking Requests" }}
+        />
+        <Stack.Screen
+          name="AllBookings"
+          component={AllBookingsScreen}
+          options={{ title: "All Bookings" }}
+        />
+        <Stack.Screen
+          name="UploadData"
+          component={UploadDataScreen}
+          options={{ title: "Upload Data" }}
+        />
+        <Stack.Screen
+          name="AdminTimetable"
+          component={AdminTimetableScreen}
+          options={{ title: "Timetables" }}
+        />
+        <Stack.Screen
+          name="AdminBooking"
+          component={AdminBookingScreen}
+          options={{ title: "Admin Booking" }}
+        />
 
         {/* Common Screens */}
         <Stack.Screen name="Timetable" component={TimetableScreen} />
@@ -70,7 +118,11 @@ export default function AuthNavigator() {
         <Stack.Screen name="MyBookings" component={MyBookingsScreen} />
         <Stack.Screen name="Notifications" component={NotificationsScreen} />
         <Stack.Screen name="Staffroom" component={StaffroomScreen} />
-        <Stack.Screen name="BookingStatus" component={BookingStatusScreen} />
+        <Stack.Screen
+          name="BookingStatus"
+          component={BookingStatusScreen}
+          options={{ title: "Booking Status" }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

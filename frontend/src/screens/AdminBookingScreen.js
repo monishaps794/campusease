@@ -1,5 +1,6 @@
+// src/screens/AdminHome.js
 import React from "react";
-import { Text, TouchableOpacity, ScrollView } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 
 export default function AdminHome() {
@@ -23,6 +24,20 @@ export default function AdminHome() {
       >
         🧭 Admin Dashboard
       </Text>
+
+      <TouchableOpacity
+        onPress={() => navigation.navigate("AdminBooking")}
+        style={{
+          backgroundColor: "#3f51b5",
+          padding: 14,
+          borderRadius: 10,
+          marginBottom: 12,
+        }}
+      >
+        <Text style={{ color: "#fff", textAlign: "center", fontSize: 16 }}>
+          Admin Booking
+        </Text>
+      </TouchableOpacity>
 
       <TouchableOpacity
         onPress={() => navigation.navigate("AdminAllocation")}
@@ -77,21 +92,6 @@ export default function AdminHome() {
       >
         <Text style={{ color: "#fff", textAlign: "center", fontSize: 16 }}>
           All Bookings
-        </Text>
-      </TouchableOpacity>
-
-      {/* ✅ Added Admin Booking button */}
-      <TouchableOpacity
-        onPress={() => navigation.navigate("AdminBooking")}
-        style={{
-          backgroundColor: "#009688",
-          padding: 14,
-          borderRadius: 10,
-          marginBottom: 12,
-        }}
-      >
-        <Text style={{ color: "#fff", textAlign: "center", fontSize: 16 }}>
-          Admin Booking
         </Text>
       </TouchableOpacity>
 

@@ -9,7 +9,7 @@ const TOKEN_KEY = "@campusease_token";
  * @param {Object} user
  * @param {string} token
  */
-export const saveAuthData = async (user, token) => {
+export const saveAuthData = async (user, token = "mock-token") => {
   try {
     if (user != null) await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
     if (token != null) await AsyncStorage.setItem(TOKEN_KEY, token);
@@ -26,26 +26,6 @@ export const getAuthData = async () => {
   } catch (err) {
     console.error("getAuthData error:", err);
     return { user: null, token: null };
-  }
-};
-
-export const getUser = async () => {
-  try {
-    const u = await AsyncStorage.getItem(USER_KEY);
-    return u ? JSON.parse(u) : null;
-  } catch (err) {
-    console.error("getUser error:", err);
-    return null;
-  }
-};
-
-export const getToken = async () => {
-  try {
-    const t = await AsyncStorage.getItem(TOKEN_KEY);
-    return t || null;
-  } catch (err) {
-    console.error("getToken error:", err);
-    return null;
   }
 };
 
