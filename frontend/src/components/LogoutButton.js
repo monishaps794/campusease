@@ -1,13 +1,16 @@
-// frontend/src/components/LogoutButton.js
 import React from "react";
 import { TouchableOpacity, Text, StyleSheet } from "react-native";
-import { clearAuthData } from "../utils/storage";
+import { removeAuthData } from "../utils/storage";
 
 export default function LogoutButton({ navigation }) {
   const handleLogout = async () => {
-    await clearAuthData();
-    navigation.replace("Login");
+    await removeAuthData();
+    navigation.reset({
+      index: 0,
+      routes: [{ name: "Login" }],
+    });
   };
+
   return (
     <TouchableOpacity style={styles.btn} onPress={handleLogout}>
       <Text style={styles.txt}>Logout</Text>

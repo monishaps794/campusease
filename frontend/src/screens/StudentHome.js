@@ -1,3 +1,4 @@
+// frontend/src/screens/StudentHome.js
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import LogoutButton from "../components/LogoutButton";
@@ -7,18 +8,39 @@ export default function StudentHome({ navigation }) {
     <View style={styles.container}>
       <Text style={styles.title}>Student Dashboard</Text>
 
-      {/* View Timetable Button */}
+      {/* View My Section Timetable */}
       <TouchableOpacity
         style={styles.card}
-        onPress={() => navigation.navigate("Timetable")}
+       onPress={() => navigation.navigate("StudentTimetable")}
+
       >
-        <Text style={styles.cardText}>View Timetable</Text>
+        <Text style={styles.cardText}>📚 My Timetable</Text>
       </TouchableOpacity>
 
-      {/* Logout */}
-      <View style={{ marginTop: 40 }}>
-        <LogoutButton navigation={navigation} />
-      </View>
+      {/* Classroom Map - Read Only */}
+      <TouchableOpacity style={styles.card} onPress={() => navigation.navigate("StudentBookings")}>
+      <Text style={styles.cardText}>View Classroom Bookings</Text>
+      </TouchableOpacity>
+      {/* Staffroom Locations */}
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => navigation.navigate("Staffrooms")}
+      >
+        <Text style={styles.cardText}>🏢 Staffroom Locations</Text>
+      </TouchableOpacity>
+
+       
+      {/* Notifications */}
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => navigation.navigate("Notifications")}
+      >
+        <Text style={styles.cardText}>🔔 Notifications</Text>
+      </TouchableOpacity>
+
+      
+
+      <LogoutButton navigation={navigation} />
     </View>
   );
 }
@@ -38,16 +60,12 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   card: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 20,
-    paddingHorizontal: 25,
+    backgroundColor: "#0066FF",
+    paddingVertical: 18,
+    paddingHorizontal: 24,
     borderRadius: 14,
     marginVertical: 10,
     width: "80%",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
     elevation: 3,
   },
   cardText: {

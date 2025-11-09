@@ -1,12 +1,20 @@
-// src/routes/allocatorRoutes.js
+// backend/src/routes/allocatorRoutes.js
 import express from "express";
-import { runAllocatorController,saveAllocationController } from "../controllers/allocatorController.js";
+import {
+  runAllocator,
+  restoreDefault,
+  saveAllocation,
+  getLatestAllocation,
+  seedISEClassrooms,
+} from "../controllers/allocatorController.js";
+import { verifyAdmin } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// POST or GET both supported for testing
-router.post("/run", runAllocatorController);
-router.get("/run", runAllocatorController);
-router.post("/save", saveAllocationController);
+router.get("/latest", getLatestAllocation);
+router.post("/run", verifyAdmin, runAllocator);
+router.post("/restore-default", verifyAdmin, restoreDefault);
+router.post("/save", verifyAdmin, saveAllocation);
+router.post("/seed-classrooms", verifyAdmin, seedISEClassrooms);
 
 export default router;

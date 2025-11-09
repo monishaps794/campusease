@@ -1,111 +1,136 @@
 // frontend/src/screens/AdminTimetableScreen.js
 import React, { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, StyleSheet, Alert } from "react-native";
+import {
+  View, Text, TouchableOpacity, ScrollView, Modal, StyleSheet, ActivityIndicator,
+} from "react-native";
 import api from "../api";
 
-const BRANCHES = ["ISE"]; // extend later
+const BRANCHES = ["ISE"];
 const SECTIONS = ["3A","3B","3C","5A","5B","5C","7A","7B","7C"];
 const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const SLOTS = ["8:30-9:30","9:30-10:30","11:00-12:00","12:00-1:00","2:00-3:00","3:00-4:00"];
 
 export default function AdminTimetableScreen() {
   const [branch, setBranch] = useState("ISE");
   const [section, setSection] = useState("3A");
-  const [day, setDay] = useState("Monday");
-  const [year, setYear] = useState("3"); // derived from section (3,5,7)
-  const [slots, setSlots] = useState([]);
+  const [timetableByDay, setTimetableByDay] = useState({});
   const [loading, setLoading] = useState(false);
+  const [selectedCell, setSelectedCell] = useState(null);
 
-  useEffect(() => {
-    // derive year from section first char
-    if (section && section.length) {
-      setYear(section.charAt(0));
-    }
-    fetchTimetable();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [branch, section, day]);
+  useEffect(() => { fetchAllDays(); }, [branch, section]);
 
-  const fetchTimetable = async () => {
+  const fetchAllDays = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const sectionLetter = section.slice(1); // "A"/"B"
-      const yearNum = section.charAt(0); // "3"/"5"/"7"
-      const res = await api.getTimetable(branch, yearNum, sectionLetter, day);
-      if (res && res.success) {
-        setSlots(res.slots || []);
-      } else {
-        setSlots([]);
+      const [year, sec] = [section.charAt(0), section.charAt(1)];
+      const resByDay = {};
+      for (const day of DAYS) {
+        const r = await api.getTimetableMerged(branch, year, sec, day);
+        resByDay[day] = r?.slots || [];
       }
-    } catch (err) {
-      console.error("Timetable fetch error:", err);
-      Alert.alert("Error", "Failed to fetch timetable.");
-      setSlots([]);
+      setTimetableByDay(resByDay);
+    } catch (e) {
+      console.error("AdminTimetable fetch err:", e);
+      setTimetableByDay({});
     } finally {
       setLoading(false);
     }
   };
 
-  const renderItem = ({ item }) => (
-    <View style={styles.card}>
-      <Text style={styles.time}>{item.time}</Text>
-      <Text style={styles.subject}>{item.subject}</Text>
-      <Text style={styles.faculty}>{item.faculty}</Text>
-      <Text style={styles.room}>{item.classroom || "-"}</Text>
-      <Text style={styles.type}>{item.type}</Text>
-    </View>
-  );
+  const renderCell = (day, slot) => {
+    const list = timetableByDay[day] || [];
+    const entry = list.find((x) => x.time === slot);
+    if (!entry) return <Text style={styles.emptyCell}>—</Text>;
+    const room = entry.classroom || "—";
+    return (
+      <TouchableOpacity onPress={() => setSelectedCell({ ...entry, day })}>
+        <Text style={styles.subject}>{entry.subject || ""}</Text>
+        <Text style={{ fontSize: 11 }}>{entry.faculty || ""}</Text>
+        <Text style={{ fontSize: 11, color: "#333" }}>{room}</Text>
+        <Text style={{ fontSize: 10, color: "#666" }}>{entry.type || ""}</Text>
+      </TouchableOpacity>
+    );
+  };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Timetable Viewer (Admin)</Text>
+    <ScrollView style={{ flex: 1, padding: 12, backgroundColor: "#fff" }}>
+      <Text style={styles.title}>🗓️ Timetable Matrix (Admin)</Text>
 
       <View style={styles.row}>
-        {BRANCHES.map(b => (
+        {BRANCHES.map((b) => (
           <TouchableOpacity key={b} style={[styles.pill, branch === b && styles.pillSelected]} onPress={() => setBranch(b)}>
-            <Text style={branch===b?styles.pillTextSelected:styles.pillText}>{b}</Text>
+            <Text style={branch === b ? styles.pillTextSelected : styles.pillText}>{b}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
       <View style={styles.row}>
-        {SECTIONS.map(s => (
-          <TouchableOpacity key={s} style={[styles.pill, section===s && styles.pillSelected]} onPress={()=>setSection(s)}>
-            <Text style={section===s?styles.pillTextSelected:styles.pillText}>{s}</Text>
+        {SECTIONS.map((s) => (
+          <TouchableOpacity key={s} style={[styles.pill, section === s && styles.pillSelected]} onPress={() => setSection(s)}>
+            <Text style={section === s ? styles.pillTextSelected : styles.pillText}>{s}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <View style={styles.row}>
-        {DAYS.map(d => (
-          <TouchableOpacity key={d} style={[styles.pill, day===d && styles.pillSelected]} onPress={()=>setDay(d)}>
-            <Text style={day===d?styles.pillTextSelected:styles.pillText}>{d}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {loading ? <ActivityIndicator style={{ marginTop: 20 }} /> : (
-        <FlatList
-          data={slots}
-          keyExtractor={(it, idx) => String(idx)}
-          renderItem={renderItem}
-          ListEmptyComponent={<Text style={{ textAlign: "center", marginTop: 20 }}>No classes for selected day</Text>}
-        />
+      {loading ? (
+        <ActivityIndicator style={{ marginTop: 20 }} />
+      ) : (
+        <ScrollView horizontal>
+          <View>
+            <View style={[styles.row, styles.headerRow]}>
+              <Text style={[styles.headerCell, { width: 100 }]}>Day ↓ / Slot →</Text>
+              {SLOTS.map((slot) => (
+                <Text key={slot} style={[styles.headerCell, { width: 140 }]}>{slot}</Text>
+              ))}
+            </View>
+            {DAYS.map((day) => (
+              <View key={day} style={styles.row}>
+                <Text style={[styles.dayCell, { width: 100 }]}>{day}</Text>
+                {SLOTS.map((slot) => (
+                  <View key={`${day}-${slot}`} style={[styles.cell, { width: 140 }]}>
+                    {renderCell(day, slot)}
+                  </View>
+                ))}
+              </View>
+            ))}
+          </View>
+        </ScrollView>
       )}
-    </View>
+
+      <Modal visible={!!selectedCell} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>{selectedCell?.subject}</Text>
+            <Text>📅 {selectedCell?.day}</Text>
+            <Text>⏰ {selectedCell?.time}</Text>
+            <Text>👨‍🏫 {selectedCell?.faculty}</Text>
+            <Text>🏫 Room: {selectedCell?.classroom || "—"}</Text>
+            <Text>🏷️ {selectedCell?.type || ""}</Text>
+            <TouchableOpacity onPress={() => setSelectedCell(null)} style={styles.closeBtn}>
+              <Text style={{ color: "#fff" }}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container:{flex:1,padding:12,backgroundColor:"#fff"},
-  title:{fontSize:20,fontWeight:"bold",textAlign:"center",marginBottom:10},
-  row:{flexDirection:"row",flexWrap:"wrap",marginBottom:8},
-  pill:{borderWidth:1,borderColor:"#ddd",padding:8, borderRadius:8, marginRight:8, marginBottom:6},
-  pillSelected:{backgroundColor:"#007AFF",borderColor:"#007AFF"},
-  pillText:{color:"#333"},
-  pillTextSelected:{color:"#fff"},
-  card:{backgroundColor:"#f7f9fb",padding:12, borderRadius:8, marginVertical:6},
-  time:{fontWeight:"bold"},
-  subject:{fontSize:16,fontWeight:"600"},
-  faculty:{color:"#333"},
-  room:{color:"#666"},
-  type:{fontStyle:"italic",color:"#444"}
+  title: { fontSize: 20, fontWeight: "bold", textAlign: "center", marginBottom: 10 },
+  row: { flexDirection: "row", alignItems: "center", marginBottom: 4 },
+  pill: { borderWidth: 1, borderColor: "#ddd", padding: 8, borderRadius: 8, marginRight: 6, marginBottom: 6 },
+  pillSelected: { backgroundColor: "#007AFF", borderColor: "#007AFF" },
+  pillText: { color: "#333" },
+  pillTextSelected: { color: "#fff" },
+  headerRow: { backgroundColor: "#f1f5f9", paddingVertical: 4 },
+  headerCell: { fontWeight: "bold", textAlign: "center" },
+  dayCell: { fontWeight: "bold", textAlign: "center" },
+  cell: { borderWidth: 1, borderColor: "#ddd", padding: 6, alignItems: "center", justifyContent: "center" },
+  subject: { fontSize: 12, textAlign: "center", fontWeight: "600" },
+  emptyCell: { color: "#ccc", textAlign: "center" },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" },
+  modalBox: { backgroundColor: "#fff", padding: 20, borderRadius: 10, width: "85%", alignItems: "center" },
+  modalTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 8 },
+  closeBtn: { marginTop: 16, backgroundColor: "#007AFF", padding: 10, borderRadius: 8 },
 });

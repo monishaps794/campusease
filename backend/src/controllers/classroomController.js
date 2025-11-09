@@ -1,83 +1,22 @@
-// src/controllers/classroomController.js
 import Classroom from "../models/Classroom.js";
 import Booking from "../models/Booking.js";
-import Timetable from "../models/Timetable.js";
 
-/**
- * GET /classrooms/available
- * query: branch, year, section, date, slot, day
- */
-
-export const getAvailableClassrooms = async (req, res) => {
+export const getAllClassrooms = async (req, res) => {
   try {
-    const { branch, date, slot } = req.query;
-    if (!branch || !date || !slot) {
-      return res.status(400).json({ message: "Missing required params" });
-    }
-
-    // normalize to uppercase weekday (MONDAY, TUESDAY...)
-    const dayOfWeek = new Date(date)
-      .toLocaleDateString("en-US", { weekday: "long" })
-      .toUpperCase();
-
-    // --- Step 1: All classrooms of department ---
-    const allRooms = await Classroom.find({ department: branch });
-    const allRoomNumbers = allRooms.map((r) => r.roomNumber);
-
-    // --- Step 2: Find timetable docs for this branch and day ---
-    const timetables = await Timetable.find({ branch, day: dayOfWeek });
-
-    // --- Step 3: Find sections having THEORY class at this slot ---
-    const occupiedSections = timetables
-      .filter((t) =>
-        t.slots.some(
-          (s) =>
-            s.timeSlot === slot &&
-            s.type.toUpperCase() === "THEORY" &&
-            !s.subjectName.toLowerCase().includes("lab")
-        )
-      )
-      .map((t) => `${t.year}${t.section}`);
-
-    // --- Step 4: Use allocator’s past room assignment if available (optional) ---
-    // Here, we assume rooms were assigned in order of sections (3A -> ISE101, etc.)
-    const sectionToRoom = {};
-    allRoomNumbers.forEach((r, i) => {
-      const yr = 3 + Math.floor(i / 3); // not exact but safe default
-      const sec = String.fromCharCode(65 + (i % 3));
-      sectionToRoom[`${yr}${sec}`] = r;
-    });
-
-    // --- Step 5: Rooms occupied due to theory classes ---
-    const timetableOccupiedRooms = occupiedSections
-      .map((sec) => sectionToRoom[sec])
-      .filter(Boolean);
-
-    // --- Step 6: Also exclude booked rooms ---
-    const booked = await Booking.find({
-      date,
-      slot,
-      status: { $ne: "rejected" },
-    });
-    const bookedRooms = booked.map((b) => b.roomNumber);
-
-    // --- Step 7: Filter ---
-    const unavailable = new Set([...timetableOccupiedRooms, ...bookedRooms]);
-    const freeRooms = allRoomNumbers.filter((r) => !unavailable.has(r));
-
-    res.json({ availableRooms: freeRooms });
+    const classrooms = await Classroom.find();
+    res.json({ success: true, classrooms });
   } catch (err) {
-    console.error("getAvailableClassrooms error:", err);
-    res.status(500).json({ message: "Error finding rooms", error: err.message });
+    res.status(500).json({ success: false, error: "Failed to fetch classrooms" });
   }
 };
 
-/**
- * Seed sample classrooms
- */
 export const seedClassrooms = async (req, res) => {
   try {
-    const rooms = [
+    const existing = await Classroom.find({ roomNumber: { $regex: /^ISE/ } });
+    if (existing.length >= 8) {
+      return res.json({ success: true, message: "Already seeded" });
+    }
+    const list = [
       { roomNumber: "ISE101", department: "ISE", capacity: 60 },
       { roomNumber: "ISE102", department: "ISE", capacity: 60 },
       { roomNumber: "ISE103", department: "ISE", capacity: 60 },
@@ -85,25 +24,34 @@ export const seedClassrooms = async (req, res) => {
       { roomNumber: "ISE105", department: "ISE", capacity: 60 },
       { roomNumber: "ISE106", department: "ISE", capacity: 60 },
       { roomNumber: "ISE107", department: "ISE", capacity: 60 },
-       // Lab rooms
-      { roomNumber: "ISELAB1", department: "ISE", capacity: 60 },
+      { roomNumber: "ISE108", department: "ISE", capacity: 60 }
     ];
-    await Classroom.deleteMany({});
-    await Classroom.insertMany(rooms);
-    res.json({ message: "Classrooms seeded", count: rooms.length });
+    await Classroom.insertMany(list);
+    res.json({ success: true, classrooms: list });
   } catch (err) {
-    res.status(500).json({ message: "Seeding failed", error: err.message });
+    res.status(500).json({ success: false, error: "Seed failed" });
   }
 };
 
-/**
- * Return all classrooms
- */
-export const getAllClassrooms = async (req, res) => {
+export const getAvailableClassrooms = async (req, res) => {
   try {
-    const all = await Classroom.find({});
-    res.json(all);
+    const { date, slot } = req.query;
+    const all = await Classroom.find();
+    const booked = await Booking.find({ date, slot, status: "approved" }).populate("roomId");
+    const bookedSet = new Set(booked.map(b => b.roomId.roomNumber));
+    const available = all.filter(r => !bookedSet.has(r.roomNumber));
+    res.json({ success: true, available });
   } catch (err) {
-    res.status(500).json({ message: "Fetch all failed", error: err.message });
+    res.status(500).json({ success: false, error: "Failed to get availability" });
+  }
+};
+
+export const getClassroomDetails = async (req, res) => {
+  try {
+    const room = await Classroom.findOne({ roomNumber: req.params.roomNumber });
+    if (!room) return res.status(404).json({ success: false, message: "Not found" });
+    res.json({ success: true, classroom: room });
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Failed to fetch details" });
   }
 };

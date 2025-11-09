@@ -1,28 +1,18 @@
-// backend/src/routes/timetableRoutes.js
+// backend/src/routes/timetable.js
 import express from "express";
-import { getTimetableForSectionDay } from "../controllers/timetableController.js";
-import Timetable from "../models/Timetable.js";
+import { getMergedDay } from "../controllers/timetableController.js";
+import { getFacultyTimetable } from "../controllers/facultyTimetableController.js";
+import { getSectionTimetable } from "../controllers/studentTimetableController.js";
 
 const router = express.Router();
 
-// POST /timetable/upload
-router.post("/upload", async (req, res) => {
-  try {
-    const data = req.body;
-    if (!Array.isArray(data)) {
-      return res.status(400).json({ message: "Array required" });
-    }
+// Final merged timetable endpoint (used by admin)
+router.get("/merged/:branch/:year/:section/:day", getMergedDay);
 
-    await Timetable.deleteMany({}); // clear all old timetables
-    const inserted = await Timetable.insertMany(data);
-    res.json({ success: true, count: inserted.length });
-  } catch (err) {
-    console.error("Timetable upload error:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
+// Faculty CSV view
+router.get("/faculty/:facultyName", getFacultyTimetable);
 
-// GET /timetable/:branch/:year/:section/:day
-router.get("/:branch/:year/:section/:day", getTimetableForSectionDay);
+// ✅ NEW: Student section full-week CSV view
+router.get("/section/:branch/:year/:section", getSectionTimetable);
 
 export default router;

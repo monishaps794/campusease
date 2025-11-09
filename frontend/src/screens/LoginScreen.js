@@ -1,4 +1,3 @@
-// frontend/src/screens/LoginScreen.js
 import React, { useState } from "react";
 import { View, Text, TextInput, Button, Alert, StyleSheet, Platform } from "react-native";
 import axios from "axios";
@@ -12,25 +11,19 @@ export default function LoginScreen({ navigation }) {
       Alert.alert("Error", "Please enter your email");
       return;
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      Alert.alert("Invalid Email", "Enter a valid email address");
-      return;
-    }
 
     try {
       setLoading(true);
-      const res = await axios.post("http://10.242.24.77:5000/auth/request-otp", {
-        email,
-      });
+      const res = await axios.post("http://10.183.195.64:5000/auth/request-otp", { email });
 
       if (res.data.success) {
-        Alert.alert("Success", res.data.message);
-        navigation.navigate("OTPVerify", { email });
+        Alert.alert("✅ OTP Sent", `OTP sent to ${email}`);
+        navigation.navigate("OTPVerify", { email: email.toLowerCase().trim() });
       } else {
         Alert.alert("Error", res.data.message || "Failed to send OTP");
       }
     } catch (error) {
-      console.error("❌ OTP Request Error:", error.response?.data || error.message);
+      console.error("OTP Request Error:", error.response?.data || error.message);
       Alert.alert("Error", error.response?.data?.message || "Failed to send OTP");
     } finally {
       setLoading(false);
@@ -58,31 +51,11 @@ export default function LoginScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    justifyContent: "center",
-    padding: 20,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "bold",
-    marginBottom: 20,
-    textAlign: "center",
-  },
+  container: { flex: 1, backgroundColor: "#fff", justifyContent: "center", padding: 20 },
+  title: { fontSize: 22, fontWeight: "bold", marginBottom: 20, textAlign: "center" },
   input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    padding: 10,
-    borderRadius: 6,
-    marginBottom: 15,
-    ...Platform.select({
-      web: { pointerEvents: "auto" },
-    }),
+    borderWidth: 1, borderColor: "#ccc", padding: 10, borderRadius: 6, marginBottom: 15,
+    ...Platform.select({ web: { pointerEvents: "auto" } }),
   },
-  buttonWrapper: {
-    ...Platform.select({
-      web: { pointerEvents: "auto" },
-    }),
-  },
+  buttonWrapper: { ...Platform.select({ web: { pointerEvents: "auto" } }) },
 });

@@ -1,130 +1,215 @@
-// backend/src/controllers/bookingController.js
 import mongoose from "mongoose";
 import Booking from "../models/Booking.js";
 import Classroom from "../models/Classroom.js";
-import Timetable from "../models/Timetable.js";
-import { sendNotificationEmail } from "../../utils/mailer.js";
+import AllocationResult from "../models/AllocationResult.js";
+import User from "../models/User.js";
 
-/** Normalize a room identifier (e.g., "ISE101") */
-const normalizeRoomNumber = (raw) => {
-  if (!raw) return null;
-  return String(raw).replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+/* -------------------------- Helpers -------------------------- */
+const norm = (s) => (s ? String(s).trim() : "");
+
+const weekdayFromISO = (iso) => {
+  const days = ["SUNDAY","MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY"];
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return days[d.getDay()];
 };
 
-/**
- * POST /bookings/request
- * Faculty creates booking request.
- * Body: { roomNumber, date, slot, branch, year, section, facultyEmail, facultyName }
- */
+/* =====================================================================
+   ✅ SINGLE SOURCE OF TRUTH: getAvailableClassrooms
+   Uses:
+   - Latest AllocationResult (timetable → rooms reserved per day/slot)
+   - Approved bookings (DB)
+   - 7C reserved rooms
+   Returns three buckets: available, booked, reserved7C
+   ===================================================================== */
+export const getAvailableClassrooms = async (req, res) => {
+  try {
+    const { date, slot } = req.query;
+    if (!date || !slot) {
+      return res.status(400).json({ success:false, message:"date & slot required" });
+    }
+
+    const day = weekdayFromISO(date); // "MONDAY".."SUNDAY"
+    if (!day) return res.status(400).json({ success:false, message:"Invalid date" });
+
+    // 1) all rooms
+    const allRooms = await Classroom.find().lean();
+
+    // 2) timetable allocation (latest)
+    const latest = await AllocationResult.findOne().sort({ createdAt:-1 }).lean();
+    const allocation = latest?.allocation || {};
+
+    const reserved7CSet = new Set();
+    const scheduledSet = new Set(); // fixed rooms for other sections
+
+    for (const [sec, recs] of Object.entries(allocation)) {
+      if (!Array.isArray(recs)) continue;
+      for (const c of recs) {
+        const cday = (c.day || "").toUpperCase();
+        const cslot = c.slot || c.time;
+        const room = c.room || c.roomNumber;
+        if (!room) continue;
+        if (cday === day && cslot === slot) {
+          if (sec === "7C") reserved7CSet.add(room);
+          else scheduledSet.add(room);
+        }
+      }
+    }
+
+    // 3) approved bookings (DB)
+    const approved = await Booking.find({ date, slot, status:"approved" }).lean();
+    // Build roomId→roomNumber map to handle older docs
+    const idByNumber = new Map(allRooms.map(r => [String(r._id), r.roomNumber]));
+    const bookedSet = new Set(
+      approved.map(b => b.roomNumber || idByNumber.get(String(b.roomId)) ).filter(Boolean)
+    );
+
+    const available = [];
+    const booked = [];
+    const reserved7C = [];
+
+    for (const r of allRooms) {
+      const rn = r.roomNumber;
+
+      if (reserved7CSet.has(rn)) {
+        reserved7C.push({ roomNumber: rn, type: r.type });
+      } else if (scheduledSet.has(rn) || bookedSet.has(rn)) {
+        booked.push({ roomNumber: rn, type: r.type });
+      } else {
+        available.push({ roomNumber: rn, type: r.type });
+      }
+    }
+
+    // (Optional) keep LAB last client-side; here we just return lists.
+    return res.json({ success:true, available, booked, reserved7C });
+
+  } catch (err) {
+    console.error("getAvailableClassrooms ERROR:", err);
+    return res.status(500).json({ success:false, message:"Server error" });
+  }
+};
+
+/* =====================================================================
+   Faculty → create pending booking
+   ===================================================================== */
 export const createBookingRequest = async (req, res) => {
   try {
-    let {
-      roomId,
+    let { facultyEmail, roomNumber, date, slot, reason, branch, year, section } = req.body;
+    facultyEmail = norm(facultyEmail);
+    roomNumber = norm(roomNumber);
+
+    if (!facultyEmail || !roomNumber || !date || !slot)
+      return res.status(400).json({ success: false, message: "Missing fields" });
+
+    const room = await Classroom.findOne({ roomNumber });
+    if (!room) return res.status(404).json({ success: false, message: "Room not found" });
+
+    const exists = await Booking.findOne({ roomNumber, date, slot, status: "approved" });
+    if (exists) return res.status(409).json({ success: false, message: "Room already booked" });
+
+    const booking = await Booking.create({
+      facultyEmail: facultyEmail.toLowerCase(),
+      requestedBy: facultyEmail.toLowerCase(),
+      roomId: room._id,
+      roomNumber,
+      date,
+      slot,
+      reason: reason || "",
+      branch,
+      year,
+      section,
+      status: "pending",
+    });
+
+    return res.json({ success: true, message: "Request submitted", booking });
+  } catch (err) {
+    console.error("createBookingRequest:", err);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+/* =====================================================================
+   Admin → direct book (auto-approved) + optional override
+   override = true → cancels pending/approved conflicting bookings first
+   ===================================================================== */
+export const adminBook = async (req, res) => {
+  try {
+    const { roomNumber: rawRoomNumber, date, slot, reason, branch, year, section, override } = req.body;
+    const roomNumber = norm(rawRoomNumber);
+    if (!roomNumber || !date || !slot)
+      return res.status(400).json({ success: false, message: "roomNumber, date, slot required" });
+
+    const room = await Classroom.findOne({ roomNumber });
+    if (!room) return res.status(404).json({ success: false, message: "Room not found" });
+
+    if (override) {
+      await Booking.updateMany(
+        { roomNumber, date, slot, status: { $in: ["pending", "approved"] } },
+        { $set: { status: "cancelled", cancelledBy: "admin" } }
+      );
+    } else {
+      const exists = await Booking.findOne({ roomNumber, date, slot, status: "approved" });
+      if (exists) return res.status(409).json({ success: false, message: "Room already booked (use override)" });
+    }
+
+    const booking = await Booking.create({
+      roomId: room._id,
       roomNumber,
       date,
       slot,
       branch,
       year,
       section,
-      reason,
-      facultyEmail,
-      facultyName,
-    } = req.body;
-
-    if (!date || !slot || !(roomId || roomNumber)) {
-      return res
-        .status(400)
-        .json({ success: false, message: "roomNumber, date and slot required" });
-    }
-
-    // Derive a normalized requestedBy (faculty)
-    const requestedBy =
-      (facultyEmail || "").toLowerCase() ||
-      (facultyName || "unknown@college.edu").toLowerCase();
-
-    // Resolve roomId if only roomNumber is provided
-    if (!roomId && roomNumber) {
-      const normalized = normalizeRoomNumber(roomNumber);
-      const found = await Classroom.findOne({
-        $or: [
-          { roomNumber: roomNumber },
-          { roomNumber: roomNumber.replace(/[-\s]/g, "") },
-          { roomNumber: normalized },
-          { name: roomNumber },
-        ],
-      });
-      if (found) roomId = found._id;
-    }
-
-    // Validate
-    if (!roomId || !mongoose.isValidObjectId(roomId)) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid or missing classroom" });
-    }
-
-    // Prevent double-booking
-    const already = await Booking.findOne({
-      roomId,
-      date,
-      slot,
-      status: { $in: ["pending", "approved"] },
-    });
-    if (already) {
-      return res
-        .status(409)
-        .json({ success: false, message: "Room already booked for that slot" });
-    }
-
-    // Create new booking request
-    const newBooking = await Booking.create({
-      roomId,
-      date,
-      slot,
-      branch,
-      year,
-      section,
-      reason: reason || "Classroom Booking",
-      requestedBy,
-      facultyName: facultyName || "Faculty",
-      status: "pending",
-      createdAt: new Date(),
+      reason: reason || `Admin direct booking (${section || ""})`,
+      facultyEmail: "admin@campusease",
+      requestedBy: "admin@campusease",
+      approvedBy: "admin",
+      status: "approved",
     });
 
-    // Optional admin notification
-    try {
-      const adminEmail = process.env.ADMIN_EMAIL || process.env.FROM_EMAIL;
-      if (adminEmail) {
-        await sendNotificationEmail(
-          adminEmail,
-          "New Booking Request",
-          `Faculty ${facultyName} (${facultyEmail}) requested ${roomNumber} on ${date} (${slot}).`
-        );
-      }
-    } catch (e) {
-      console.warn("sendNotificationEmail failed:", e?.message || e);
-    }
-
-    return res.status(201).json({
-      success: true,
-      message: "Booking request submitted successfully!",
-      booking: newBooking,
-    });
+    return res.json({ success: true, message: "Admin booking confirmed", booking });
   } catch (err) {
-    console.error("createBookingRequest:", err);
-    return res
-      .status(500)
-      .json({ success: false, message: "Server error", error: err.message });
+    console.error("adminBook:", err);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+export const cancelByTriplet = async (req, res) => {
+  try {
+    const { roomNumber, date, slot } = req.query;
+    if (!roomNumber || !date || !slot)
+      return res.status(400).json({ success: false, message: "roomNumber, date, slot required" });
+
+    const room = await Classroom.findOne({ roomNumber });
+    if (!room)
+      return res.status(404).json({ success: false, message: "Room not found" });
+
+    const booking = await Booking.findOne({
+      roomId: room._id,
+      date,
+      slot,
+      status: "approved"
+    });
+
+    if (!booking)
+      return res.json({ success: true, message: "No active booking to cancel." });
+
+    booking.status = "cancelled";
+    booking.cancelledBy = "admin";
+    await booking.save();
+
+    return res.json({ success: true, message: "Booking cancelled", booking });
+  } catch (err) {
+    console.error("cancelByTriplet:", err);
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
-/** GET /bookings/all (admin) */
-export const getAllBookings = async (req, res) => {
+/* =====================================================================
+   Queries / Admin decisions
+   ===================================================================== */
+export const getAllBookings = async (_req, res) => {
   try {
-    const bookings = await Booking.find()
-      .populate("roomId", "roomNumber name type capacity")
-      .sort({ date: 1, slot: 1 })
-      .lean();
+    const bookings = await Booking.find().populate("roomId", "roomNumber type capacity").sort({ date: 1, slot: 1 }).lean();
     return res.json({ success: true, bookings });
   } catch (err) {
     console.error("getAllBookings:", err);
@@ -132,35 +217,24 @@ export const getAllBookings = async (req, res) => {
   }
 };
 
-/** GET /bookings/faculty/:email */
 export const getBookingsByFaculty = async (req, res) => {
   try {
-    const email = req.params.email || req.query.email;
-    if (!email)
-      return res
-        .status(400)
-        .json({ success: false, message: "Faculty email required" });
-
+    const email = norm(req.params.email).toLowerCase();
     const bookings = await Booking.find({
-      requestedBy: String(email).toLowerCase(),
-    })
-      .populate("roomId", "roomNumber name")
-      .sort({ createdAt: -1 })
-      .lean();
-
-    return res.json({ success: true, count: bookings.length, bookings });
+      $or: [{ facultyEmail: email }, { requestedBy: email }],
+    }).populate("roomId", "roomNumber").sort({ createdAt: -1 }).lean();
+    return res.json({ success: true, bookings });
   } catch (err) {
     console.error("getBookingsByFaculty:", err);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
-/** GET /bookings/requests (admin) */
-export const getPendingRequests = async (req, res) => {
+export const getPendingRequests = async (_req, res) => {
   try {
     const pending = await Booking.find({ status: "pending" })
-      .populate("roomId", "roomNumber name type capacity")
-      .sort({ date: 1 })
+      .populate("roomId", "roomNumber type capacity")
+      .sort({ date: 1, slot: 1 })
       .lean();
     return res.json({ success: true, requests: pending });
   } catch (err) {
@@ -169,182 +243,165 @@ export const getPendingRequests = async (req, res) => {
   }
 };
 
-/** PUT /bookings/approve/:id */
 export const approveBooking = async (req, res) => {
   try {
     const id = req.params.id;
-    if (!mongoose.isValidObjectId(id))
-      return res
-        .status(400)
-        .json({ success: false, message: "Valid booking id required" });
+    if (!mongoose.isValidObjectId(id)) return res.status(400).json({ success: false, message: "invalid id" });
 
     const booking = await Booking.findById(id);
-    if (!booking)
-      return res.status(404).json({ success: false, message: "Booking not found" });
+    if (!booking) return res.status(404).json({ success: false, message: "not found" });
 
     const conflict = await Booking.findOne({
       _id: { $ne: booking._id },
-      roomId: booking.roomId,
+      roomNumber: booking.roomNumber,
       date: booking.date,
       slot: booking.slot,
       status: "approved",
     });
-    if (conflict)
-      return res
-        .status(409)
-        .json({ success: false, message: "Room already approved for that slot" });
+
+    if (conflict) return res.status(409).json({ success: false, message: "Conflict: already approved" });
 
     booking.status = "approved";
-    booking.approvedBy = req.user?.email || "admin";
+    booking.approvedBy = "admin";
     await booking.save();
 
-    try {
-      await sendNotificationEmail(
-        booking.requestedBy,
-        "Booking Approved",
-        `Your booking for ${booking.date} (${booking.slot}) has been approved.`
-      );
-    } catch (e) {
-      console.warn("notify requester failed:", e?.message || e);
-    }
-
-    return res.json({ success: true, message: "Booking approved", booking });
+    return res.json({ success: true, message: "Approved", booking });
   } catch (err) {
     console.error("approveBooking:", err);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
-/** PUT /bookings/reject/:id */
 export const rejectBooking = async (req, res) => {
   try {
     const id = req.params.id;
-    if (!mongoose.isValidObjectId(id))
-      return res
-        .status(400)
-        .json({ success: false, message: "Valid booking id required" });
+    if (!mongoose.isValidObjectId(id)) return res.status(400).json({ success: false, message: "invalid id" });
 
-    const booking = await Booking.findByIdAndUpdate(
-      id,
-      { status: "rejected" },
-      { new: true }
-    );
-    if (!booking)
-      return res.status(404).json({ success: false, message: "Booking not found" });
+    const booking = await Booking.findByIdAndUpdate(id, { status: "rejected" }, { new: true });
+    if (!booking) return res.status(404).json({ success: false, message: "not found" });
 
-    try {
-      await sendNotificationEmail(
-        booking.requestedBy,
-        "Booking Rejected",
-        `Your booking for ${booking.date} (${booking.slot}) was rejected.`
-      );
-    } catch (e) {
-      console.warn("notify requester failed:", e?.message || e);
-    }
-
-    return res.json({ success: true, message: "Booking rejected", booking });
+    return res.json({ success: true, message: "Rejected", booking });
   } catch (err) {
     console.error("rejectBooking:", err);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
-/** DELETE /bookings/:id */
 export const cancelBooking = async (req, res) => {
   try {
     const id = req.params.id;
-    if (!mongoose.isValidObjectId(id))
-      return res
-        .status(400)
-        .json({ success: false, message: "Valid booking id required" });
+    if (!mongoose.isValidObjectId(id)) return res.status(400).json({ success: false, message: "invalid id" });
 
-    const booking = await Booking.findByIdAndUpdate(
-      id,
-      { status: "cancelled" },
-      { new: true }
-    );
-    if (!booking)
-      return res.status(404).json({ success: false, message: "Booking not found" });
+    const booking = await Booking.findById(id);
+    if (!booking) return res.status(404).json({ success: false, message: "not found" });
 
-    return res.json({ success: true, message: "Booking cancelled", booking });
+    booking.status = "cancelled";
+    booking.cancelledBy = "admin";
+    await booking.save();
+
+    return res.json({ success: true, message: "Cancelled", booking });
   } catch (err) {
     console.error("cancelBooking:", err);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
-/**
- * GET /bookings/available
- * Query: branch, year, section, date, slot
- */
-export const getAvailableClassrooms = async (req, res) => {
+export const getBookingDetails = async (req, res) => {
   try {
-    const { branch, year, section, date, day, slot } = req.query;
-    if (!date || !slot)
-      return res
-        .status(400)
-        .json({ success: false, message: "date and slot required" });
-
-    let dayName = day;
-    if (!dayName && date) {
-      const d = new Date(date + "T00:00:00");
-      const days = [
-        "Sunday",
-        "Monday",
-        "Tuesday",
-        "Wednesday",
-        "Thursday",
-        "Friday",
-        "Saturday",
-      ];
-      dayName = days[d.getDay()];
+    const { roomNumber, date, slot } = req.query;
+    if (!roomNumber || !date || !slot) {
+      return res.status(400).json({ success:false, message:"roomNumber, date, slot required" });
     }
 
-    const excludedRoomIds = new Set();
-    const excludedRoomNumbers = new Set();
+    const booking = await Booking.findOne({ roomNumber, date, slot }).lean();
+    return res.json({ success:true, booking });
+  } catch (err) {
+    console.error("getBookingDetails:", err);
+    return res.status(500).json({ success:false, message:"Server error" });
+  }
+};
 
-    if (branch && year && section && dayName) {
-      const tts = await Timetable.find({ branch, year, section, day: dayName }).lean();
-      for (const tt of tts) {
-        for (const s of tt.slots || []) {
-          const sTime = s.timeSlot || s.time || s.timeRange || "";
-          if (String(sTime).trim() === String(slot).trim()) {
-            if (s.classroom && mongoose.isValidObjectId(s.classroom)) {
-              excludedRoomIds.add(String(s.classroom));
-            }
-            if (s.classroom && typeof s.classroom === "string") {
-              excludedRoomNumbers.add(normalizeRoomNumber(s.classroom));
-            }
-          }
-        }
+/* =====================================================================
+   ✅ UPDATED: Student Section Bookings
+   - Accepts flexible branch ("ISE" or "Information Science")
+   - Accepts section "A" or "3A" (year+letter)
+   - `from`/`to` are OPTIONAL; if omitted, returns all approved
+   - Populates roomId to include roomNumber (for existing UI)
+   ===================================================================== */
+export const getSectionBookings = async (req, res) => {
+  try {
+    let { branch, year, section, from, to } = req.query;
+
+    // Normalize inputs (but do NOT break existing saved values)
+    const y = norm(year).replace(/\D/g, "");                 // "3"
+    const secLetter = norm(section).toUpperCase().replace(/^\d+/, ""); // "A"
+    const secVariants = [...new Set([secLetter, y && secLetter ? `${y}${secLetter}` : null].filter(Boolean))]; // ["A","3A"]
+
+    // Branch variants (support both code and full name)
+    const BMAP = {
+      "ISE": "INFORMATION SCIENCE",
+      "CSE": "COMPUTER SCIENCE",
+      "ECE": "ELECTRONICS & COMMUNICATION",
+      "EEE": "ELECTRICAL & ELECTRONICS",
+    };
+    const bIn = norm(branch).toUpperCase();
+    let branchVariants = [];
+    if (bIn) {
+      if (BMAP[bIn]) branchVariants = [bIn, BMAP[bIn]];
+      else {
+        const code = Object.keys(BMAP).find(k => BMAP[k] === bIn);
+        if (code) branchVariants = [code, bIn];
+        else if (bIn.includes("INFORMATION")) branchVariants = ["ISE", "INFORMATION SCIENCE"];
+        else branchVariants = [bIn];
       }
     }
 
-    const approved = await Booking.find({ date, slot, status: "approved" }).lean();
-    for (const b of approved) {
-      if (b.roomId) excludedRoomIds.add(String(b.roomId));
+    // Build Mongo query
+    const q = { status: "approved" };
+    if (branchVariants.length) q.branch = { $in: branchVariants };
+    if (y) q.year = y;
+    if (secVariants.length) q.section = { $in: secVariants };
+
+    if (from || to) {
+      const dateFilter = {};
+      if (from) dateFilter.$gte = from;
+      if (to) dateFilter.$lte = to;
+      q.date = dateFilter;
     }
 
-    const allClassrooms = await Classroom.find().lean();
-    const available = allClassrooms.filter((c) => {
-      const cid = String(c._id);
-      const rn = normalizeRoomNumber(c.roomNumber || c.name);
-      if (excludedRoomIds.has(cid)) return false;
-      if (rn && excludedRoomNumbers.has(rn)) return false;
-      if (c.blocked) return false;
-      return true;
-    });
+    const list = await Booking.find(q)
+      .populate("roomId", "roomNumber")
+      .sort({ date: 1, slot: 1 })
+      .lean();
 
-    return res.json({
-      success: true,
-      available,
-      excluded: {
-        roomIds: Array.from(excludedRoomIds),
-        roomNumbers: Array.from(excludedRoomNumbers),
-      },
-    });
+    // attach facultyName if possible
+    const emails = Array.from(
+      new Set(list.map(b => (b.facultyEmail || b.requestedBy)).filter(Boolean).map(e => e.toLowerCase()))
+    );
+    const users = emails.length ? await User.find({ email: { $in: emails } }, { name:1, email:1 }).lean() : [];
+    const nameByEmail = new Map(users.map(u => [u.email.toLowerCase(), u.name]));
+
+    const out = list.map(b => ({
+      _id: b._id,
+      roomNumber: b.roomNumber || b.roomId?.roomNumber || "",
+      roomId: b.roomId ? { roomNumber: b.roomId.roomNumber } : undefined, // keep old UI safe
+      date: b.date,
+      slot: b.slot,
+      reason: b.reason || "",
+      status: b.status,
+      requestedBy: b.requestedBy || "",
+      facultyEmail: b.facultyEmail || "",
+      facultyName:
+        nameByEmail.get((b.facultyEmail || b.requestedBy || "").toLowerCase()) ||
+        (b.facultyEmail || b.requestedBy || ""),
+      branch: b.branch,
+      year: b.year,
+      section: b.section,
+    }));
+
+    return res.json({ success:true, bookings: out, count: out.length });
   } catch (err) {
-    console.error("getAvailableClassrooms:", err);
-    return res.status(500).json({ success: false, message: "Server error" });
+    console.error("getSectionBookings:", err);
+    return res.status(500).json({ success:false, message:"Server error" });
   }
 };

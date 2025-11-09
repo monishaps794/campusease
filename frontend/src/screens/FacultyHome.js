@@ -1,3 +1,4 @@
+// frontend/src/screens/FacultyHome.js
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import LogoutButton from "../components/LogoutButton";
@@ -6,20 +7,38 @@ export default function FacultyHome({ navigation }) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Faculty Dashboard</Text>
-      <TouchableOpacity style={styles.card} onPress={() => navigation.navigate("Timetable")}>
-        <Text style={styles.cardText}>View Timetable</Text>
+
+      {/* ✅ Correct: Navigate to FacultyTimetable */}
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => navigation.navigate("FacultyTimetable")}
+      >
+        <Text style={styles.cardText}>My Timetable</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.card} onPress={() => navigation.navigate("Booking")}>
+
+      {/* ✅ Correct: Navigate to Booking */}
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => navigation.navigate("Booking")}
+      >
         <Text style={styles.cardText}>Book Classroom</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.card} onPress={() => navigation.navigate("MyBookings")}>
-        <Text style={styles.cardText}>My Bookings</Text>
+      <TouchableOpacity style={styles.card} onPress={() => navigation.navigate("Staffrooms")}>
+      <Text style={styles.cardText}>🏢 Staffroom Locations</Text> 
       </TouchableOpacity>
-      <LogoutButton navigation={navigation} />
-      <TouchableOpacity onPress={() => navigation.navigate("BookingStatus")}>
-  <Text>📋 View Booking Status</Text>
-</TouchableOpacity>
+      
 
+      {/* ✅ Correct: Navigate to MyBookings */}
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => navigation.navigate("MyBookings")}
+      >
+        <Text style={styles.cardText}>My Bookings</Text>
+
+      </TouchableOpacity>
+
+    
+      <LogoutButton navigation={navigation} />
     </View>
   );
 }

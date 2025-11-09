@@ -1,27 +1,38 @@
 // frontend/src/navigation/AuthNavigator.js
 import React, { useEffect, useState } from "react";
-import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { getAuthData } from "../utils/storage";
 
+// AUTH
 import LoginScreen from "../screens/LoginScreen";
 import OTPVerifyScreen from "../screens/OTPVerifyScreen";
+
+// HOMES
 import StudentHome from "../screens/StudentHome";
 import FacultyHome from "../screens/FacultyHome";
 import AdminHome from "../screens/AdminHome";
 
-import TimetableScreen from "../screens/TimetableScreen";
+// STUDENT
+import StudentTimetableScreen from "../screens/StudentTimetableScreen";
+import StudentBookingsScreen from "../screens/StudentBookingsScreen";
+
+// FACULTY
+import FacultyTimetableScreen from "../screens/FacultyTimetableScreen";
 import BookingScreen from "../screens/BookingScreen";
 import MyBookingsScreen from "../screens/MyBookingsScreen";
-import NotificationsScreen from "../screens/NotificationsScreen";
-import StaffroomScreen from "../screens/StaffroomScreen";
-import RequestsScreen from "../screens/RequestsScreen";
-import UploadDataScreen from "../screens/UploadDataScreen";
-import AdminAllocationScreen from "../screens/AdminAllocationScreen";
-import AllBookingsScreen from "../screens/AllBookingsScreen";
-import BookingStatusScreen from "../screens/BookingStatusScreen";
-import AdminTimetableScreen from "../screens/AdminTimetableScreen";
 
-import { getAuthData } from "../utils/storage";
+// ADMIN
+import AdminAllocationScreen from "../screens/AdminAllocationScreen";
+import SavedAllocations from "../screens/SavedAllocations";
+import AdminTimetableScreen from "../screens/AdminTimetableScreen";
+import AdminBookClassroom from "../screens/AdminBookClassroom";
+import RequestsScreen from "../screens/RequestsScreen";
+import AllBookingsScreen from "../screens/AllBookingsScreen";
+import UploadDataScreen from "../screens/UploadDataScreen";
+import AdminClassroomMap from "../screens/AdminClassroomMap";
+// COMMON
+import StaffroomScreen from "../screens/StaffroomScreen";
+import NotificationsScreen from "../screens/NotificationsScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -30,48 +41,40 @@ export default function AuthNavigator() {
 
   useEffect(() => {
     (async () => {
-      try {
-        const { user, token } = await getAuthData();
-        if (token && user?.role === "admin") setInitialRoute("AdminHome");
-        else if (token && user?.role === "faculty") setInitialRoute("FacultyHome");
-        else if (token && user?.role === "student") setInitialRoute("StudentHome");
-        else setInitialRoute("Login");
-      } catch (err) {
-        console.error("AuthNavigator init error:", err);
-        setInitialRoute("Login");
-      }
+      const data = await getAuthData();
+      if (!data?.token) return setInitialRoute("Login");
+
+      const role = data.user.role;
+      if (role === "admin") setInitialRoute("AdminHome");
+      else if (role === "faculty") setInitialRoute("FacultyHome");
+      else setInitialRoute("StudentHome");
     })();
   }, []);
 
   if (!initialRoute) return null;
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator initialRouteName={initialRoute} screenOptions={{ headerShown: true }}>
-        {/* Auth */}
-        <Stack.Screen name="Login" component={LoginScreen} options={{ title: "CampusEase Login" }} />
-        <Stack.Screen name="OTPVerify" component={OTPVerifyScreen} options={{ title: "Verify OTP" }} />
-
-        {/* Dashboards */}
-        <Stack.Screen name="StudentHome" component={StudentHome} options={{ title: "Student Dashboard" }} />
-        <Stack.Screen name="FacultyHome" component={FacultyHome} options={{ title: "Faculty Dashboard" }} />
-        <Stack.Screen name="AdminHome" component={AdminHome} options={{ title: "Admin Dashboard" }} />
-
-        {/* Admin Panels */}
-        <Stack.Screen name="AdminAllocation" component={AdminAllocationScreen} options={{ title: "Auto Allocator" }} />
-        <Stack.Screen name="AdminRequests" component={RequestsScreen} options={{ title: "Booking Requests" }} />
-        <Stack.Screen name="AllBookings" component={AllBookingsScreen} options={{ title: "All Bookings" }} />
-        <Stack.Screen name="UploadData" component={UploadDataScreen} options={{ title: "Upload Data" }} />
-        <Stack.Screen name="AdminTimetable" component={AdminTimetableScreen} options={{ title: "Timetables" }} />
-
-        {/* Common Screens */}
-        <Stack.Screen name="Timetable" component={TimetableScreen} />
-        <Stack.Screen name="Booking" component={BookingScreen} />
-        <Stack.Screen name="MyBookings" component={MyBookingsScreen} />
-        <Stack.Screen name="Notifications" component={NotificationsScreen} />
-        <Stack.Screen name="Staffroom" component={StaffroomScreen} />
-        <Stack.Screen name="BookingStatus" component={BookingStatusScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <Stack.Navigator screenOptions={{ headerShown: true }} initialRouteName={initialRoute}>
+      <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="OTPVerify" component={OTPVerifyScreen} />
+      <Stack.Screen name="StudentHome" component={StudentHome} />
+      <Stack.Screen name="FacultyHome" component={FacultyHome} />
+      <Stack.Screen name="AdminHome" component={AdminHome} />
+      <Stack.Screen name="StudentTimetable" component={StudentTimetableScreen} />
+      <Stack.Screen name="StudentBookings" component={StudentBookingsScreen} />
+      <Stack.Screen name="FacultyTimetable" component={FacultyTimetableScreen} />
+      <Stack.Screen name="Booking" component={BookingScreen} />
+      <Stack.Screen name="MyBookings" component={MyBookingsScreen} />
+      <Stack.Screen name="AdminAllocation" component={AdminAllocationScreen} />
+      <Stack.Screen name="SavedAllocations" component={SavedAllocations} />
+      <Stack.Screen name="AdminTimetable" component={AdminTimetableScreen} />
+      <Stack.Screen name="AdminBookClassroom" component={AdminBookClassroom} />
+      <Stack.Screen name="AdminRequests" component={RequestsScreen} />
+      <Stack.Screen name="AllBookings" component={AllBookingsScreen} />
+      <Stack.Screen name="AdminClassroomMap" component={AdminClassroomMap} />
+      <Stack.Screen name="UploadData" component={UploadDataScreen} />
+      <Stack.Screen name="Staffrooms" component={StaffroomScreen} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} />
+    </Stack.Navigator>
   );
 }

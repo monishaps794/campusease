@@ -1,85 +1,44 @@
-// frontend/src/screens/OTPVerifyScreen.js
 import React, { useState } from "react";
-import { View, Text, TextInput, Button, Alert, StyleSheet, Platform } from "react-native";
-import axios from "axios";
+import { View, Text, TextInput, TouchableOpacity } from "react-native";
+import api from "../api";
 import { saveAuthData } from "../utils/storage";
 
+
 export default function OTPVerifyScreen({ route, navigation }) {
-  const email = route.params?.email;
+  const { email } = route.params;
   const [otp, setOtp] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  const verifyOtp = async () => {
-    if (!otp.trim()) {
-      Alert.alert("Error", "Please enter OTP");
-      return;
-    }
-
+  const verify = async () => {
     try {
-      setLoading(true);
-      const res = await axios.post("http://10.242.24.77:5000/auth/verify-otp", { email, otp });
+      const cleanEmail = email.toLowerCase().trim();
+      const cleanOtp = otp.trim();
 
-      const { success, token, user, message } = res.data;
-      if (!success) {
-        Alert.alert("Error", message || "Verification failed");
-        return;
-      }
+      const data = await api.verifyOtp({ email: cleanEmail, otp: cleanOtp });
 
-      // ✅ unified storage (token + user)
-      await saveAuthData({ token, user });
+      await saveAuthData(data.user, data.token);
 
-      Alert.alert("Success", "OTP verified successfully");
-
-      // ✅ role-based redirect
-      if (user?.role === "admin") navigation.replace("AdminHome");
-      else if (user?.role === "faculty") navigation.replace("FacultyHome");
+      if (data.user.role === "admin") navigation.replace("AdminHome");
+      else if (data.user.role === "faculty") navigation.replace("FacultyHome");
       else navigation.replace("StudentHome");
-    } catch (error) {
-      console.error("❌ OTP Verify Error:", error.response?.data || error.message);
-      Alert.alert("Error", error.response?.data?.message || "Invalid or expired OTP");
-    } finally {
-      setLoading(false);
+
+    } catch (e) {
+      alert(e.message || "Invalid OTP");
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Enter OTP sent to {email}</Text>
+    <View style={{ flex: 1, justifyContent: "center", padding: 20 }}>
+      <Text style={{ fontSize: 18, marginBottom: 10 }}>Enter OTP</Text>
+
       <TextInput
-        style={styles.input}
-        placeholder="Enter OTP"
-        keyboardType="numeric"
         value={otp}
         onChangeText={setOtp}
+        style={{ borderWidth: 1, borderColor: "#ccc", padding: 10 }}
       />
-      <Button
-        title={loading ? "Verifying..." : "Verify OTP"}
-        onPress={verifyOtp}
-        disabled={loading}
-      />
+
+      <TouchableOpacity onPress={verify} style={{ backgroundColor: "#007AFF", padding: 14, marginTop: 20 }}>
+        <Text style={{ color: "#fff", textAlign: "center" }}>Verify</Text>
+      </TouchableOpacity>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    padding: 20,
-    backgroundColor: "#fff",
-    ...Platform.select({
-      web: { pointerEvents: "auto" },
-    }),
-  },
-  title: { fontSize: 18, fontWeight: "bold", marginBottom: 15 },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 6,
-    padding: 10,
-    marginBottom: 15,
-    ...Platform.select({
-      web: { pointerEvents: "auto" },
-    }),
-  },
-});

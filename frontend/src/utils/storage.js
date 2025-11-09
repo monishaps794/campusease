@@ -2,57 +2,64 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const USER_KEY = "@campusease_user";
-const TOKEN_KEY = "@campusease_token";
 
-/**
- * Save both user and token after login (OTP verified)
- * @param {Object} user
- * @param {string} token
- */
 export const saveAuthData = async (user, token) => {
   try {
-    if (user != null) await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
-    if (token != null) await AsyncStorage.setItem(TOKEN_KEY, token);
+    const payload = JSON.stringify({ user, token });
+
+    // ✅ Store in AsyncStorage (mobile)
+    await AsyncStorage.setItem(USER_KEY, payload);
+
+    // ✅ Store in global memory (fallback)
+    global.authToken = token;
+    global.authData = payload;
+
+    // ✅ Store in localStorage (web)
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem("authToken", token);
+      localStorage.setItem(USER_KEY, payload);
+    }
+
   } catch (err) {
-    console.error("saveAuthData error:", err);
+    console.log("saveAuthData error:", err);
   }
 };
 
 export const getAuthData = async () => {
   try {
-    const u = await AsyncStorage.getItem(USER_KEY);
-    const t = await AsyncStorage.getItem(TOKEN_KEY);
-    return { user: u ? JSON.parse(u) : null, token: t || null };
-  } catch (err) {
-    console.error("getAuthData error:", err);
-    return { user: null, token: null };
+    // ✅ Web: read correct key
+    if (typeof localStorage !== "undefined") {
+      const stored = localStorage.getItem(USER_KEY);
+      if (stored) return JSON.parse(stored);
+    }
+
+    // ✅ Memory fallback
+    if (global.authData) return JSON.parse(global.authData);
+
+    // ✅ Mobile
+    const storedMobile = await AsyncStorage.getItem(USER_KEY);
+    return storedMobile ? JSON.parse(storedMobile) : null;
+
+  } catch {
+    return null;
   }
 };
 
 export const getUser = async () => {
-  try {
-    const u = await AsyncStorage.getItem(USER_KEY);
-    return u ? JSON.parse(u) : null;
-  } catch (err) {
-    console.error("getUser error:", err);
-    return null;
-  }
-};
-
-export const getToken = async () => {
-  try {
-    const t = await AsyncStorage.getItem(TOKEN_KEY);
-    return t || null;
-  } catch (err) {
-    console.error("getToken error:", err);
-    return null;
-  }
+  const data = await getAuthData();
+  return data?.user || null;
 };
 
 export const removeAuthData = async () => {
   try {
-    await AsyncStorage.multiRemove([USER_KEY, TOKEN_KEY]);
+    await AsyncStorage.removeItem(USER_KEY);
+    global.authToken = null;
+    global.authData = null;
+    if (typeof localStorage !== "undefined") {
+      localStorage.removeItem("authToken");
+      localStorage.removeItem(USER_KEY);
+    }
   } catch (err) {
-    console.error("removeAuthData error:", err);
+    console.log("removeAuthData error:", err);
   }
 };

@@ -1,12 +1,10 @@
+// backend/models/Staffroom.js
 import mongoose from "mongoose";
 
-const staffroomSchema = new mongoose.Schema({
+const StaffroomSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  building: { type: String },
-  floor: { type: String },
-  capacity: { type: Number },
+  room: { type: String, required: true },
+  block: { type: String, required: true },
 });
 
-const Staffroom = mongoose.model("Staffroom", staffroomSchema);
-
-export default Staffroom;
+export default mongoose.model("Staffroom", StaffroomSchema);

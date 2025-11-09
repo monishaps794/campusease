@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const classroomSchema = new mongoose.Schema({
   roomNumber: { type: String, required: true, unique: true },
-  department: { type: String, required: true },
+  type: { type: String, default: "Lecture Hall" },
   capacity: { type: Number, default: 60 },
 });
 
