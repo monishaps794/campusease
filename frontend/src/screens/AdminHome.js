@@ -3,8 +3,21 @@ import React from "react";
 import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import LogoutButton from "../components/LogoutButton";
+import { useEffect } from "react";
+import io from "socket.io-client";
 
 export default function AdminHome() {
+  useEffect(() => {
+  const socket = io("http://10.183.195.64:5000", { transports: ["websocket"] });
+
+  socket.on("notification", (data) => {
+    console.log("🔔 Live Notification:", data);
+    // We DO NOT auto navigate, we only refresh notifications screen next time user opens it
+  });
+
+  return () => socket.disconnect();
+}, []);
+
   const navigation = useNavigation();
 
   return (
@@ -43,6 +56,11 @@ export default function AdminHome() {
       <Text style={styles.btnText}>🏢 Staffroom Locations</Text>
       </TouchableOpacity>
       
+      <TouchableOpacity onPress={() => navigation.navigate("AdminNotifications")} style={styles.btnPrimary}>
+  <Text style={styles.btnText}>🔔 Notifications</Text>
+</TouchableOpacity>
+
+  
       <LogoutButton navigation={navigation} />
     </ScrollView>
   );

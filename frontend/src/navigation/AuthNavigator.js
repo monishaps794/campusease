@@ -30,9 +30,12 @@ import RequestsScreen from "../screens/RequestsScreen";
 import AllBookingsScreen from "../screens/AllBookingsScreen";
 import UploadDataScreen from "../screens/UploadDataScreen";
 import AdminClassroomMap from "../screens/AdminClassroomMap";
+
 // COMMON
 import StaffroomScreen from "../screens/StaffroomScreen";
-import NotificationsScreen from "../screens/NotificationsScreen";
+import StudentNotificationsScreen from "../screens/StudentNotificationsScreen";
+import FacultyNotificationsScreen from "../screens/FacultyNotificationsScreen";
+import AdminNotificationsScreen from "../screens/AdminNotificationsScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -55,26 +58,39 @@ export default function AuthNavigator() {
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: true }} initialRouteName={initialRoute}>
+      {/* AUTH */}
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="OTPVerify" component={OTPVerifyScreen} />
+
+      {/* HOMES */}
       <Stack.Screen name="StudentHome" component={StudentHome} />
       <Stack.Screen name="FacultyHome" component={FacultyHome} />
       <Stack.Screen name="AdminHome" component={AdminHome} />
+
+      {/* STUDENT */}
       <Stack.Screen name="StudentTimetable" component={StudentTimetableScreen} />
       <Stack.Screen name="StudentBookings" component={StudentBookingsScreen} />
+      <Stack.Screen name="StudentNotifications" component={StudentNotificationsScreen} />
+
+      {/* FACULTY */}
       <Stack.Screen name="FacultyTimetable" component={FacultyTimetableScreen} />
       <Stack.Screen name="Booking" component={BookingScreen} />
       <Stack.Screen name="MyBookings" component={MyBookingsScreen} />
+      <Stack.Screen name="FacultyNotifications" component={FacultyNotificationsScreen} />
+
+      {/* ADMIN */}
       <Stack.Screen name="AdminAllocation" component={AdminAllocationScreen} />
       <Stack.Screen name="SavedAllocations" component={SavedAllocations} />
       <Stack.Screen name="AdminTimetable" component={AdminTimetableScreen} />
       <Stack.Screen name="AdminBookClassroom" component={AdminBookClassroom} />
       <Stack.Screen name="AdminRequests" component={RequestsScreen} />
       <Stack.Screen name="AllBookings" component={AllBookingsScreen} />
-      <Stack.Screen name="AdminClassroomMap" component={AdminClassroomMap} />
       <Stack.Screen name="UploadData" component={UploadDataScreen} />
+      <Stack.Screen name="AdminClassroomMap" component={AdminClassroomMap} />
+      <Stack.Screen name="AdminNotifications" component={AdminNotificationsScreen} />
+
+      {/* COMMON */}
       <Stack.Screen name="Staffrooms" component={StaffroomScreen} />
-      <Stack.Screen name="Notifications" component={NotificationsScreen} />
     </Stack.Navigator>
   );
 }

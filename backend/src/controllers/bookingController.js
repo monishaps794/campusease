@@ -3,6 +3,7 @@ import Booking from "../models/Booking.js";
 import Classroom from "../models/Classroom.js";
 import AllocationResult from "../models/AllocationResult.js";
 import User from "../models/User.js";
+import Notification from "../models/notification.js";
 
 /* -------------------------- Helpers -------------------------- */
 const norm = (s) => (s ? String(s).trim() : "");
@@ -121,6 +122,18 @@ export const createBookingRequest = async (req, res) => {
       status: "pending",
     });
 
+    // 🔔 Notify admins about new request
+    try {
+      await Notification.create({
+        scope: "admin",
+        title: "New Booking Request",
+        message: `${facultyEmail} requested ${roomNumber} on ${date} at ${slot}.`,
+        bookingId: booking._id,
+      });
+    } catch (e) {
+      console.warn("Notification(createBookingRequest) warn:", e?.message || e);
+    }
+
     return res.json({ success: true, message: "Request submitted", booking });
   } catch (err) {
     console.error("createBookingRequest:", err);
@@ -167,12 +180,28 @@ export const adminBook = async (req, res) => {
       status: "approved",
     });
 
+    // 🔔 Notify section (students) immediately
+    try {
+      await Notification.create({
+        scope: "student-section",
+        department: branch,
+        year,
+        section,
+        title: "Classroom Booked",
+        message: `${section} has been allocated ${roomNumber} at ${slot} on ${date}.`,
+        bookingId: booking._id,
+      });
+    } catch (e) {
+      console.warn("Notification(adminBook) warn:", e?.message || e);
+    }
+
     return res.json({ success: true, message: "Admin booking confirmed", booking });
   } catch (err) {
     console.error("adminBook:", err);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
+
 export const cancelByTriplet = async (req, res) => {
   try {
     const { roomNumber, date, slot } = req.query;
@@ -265,6 +294,29 @@ export const approveBooking = async (req, res) => {
     booking.approvedBy = "admin";
     await booking.save();
 
+    // 🔔 Notify faculty and section on approval
+    try {
+      await Notification.create({
+        scope: "faculty",
+        facultyEmail: (booking.facultyEmail || booking.requestedBy || "").toLowerCase(),
+        title: "Booking Approved",
+        message: `${booking.roomNumber} on ${booking.date} at ${booking.slot} was approved.`,
+        bookingId: booking._id,
+      });
+
+      await Notification.create({
+        scope: "student-section",
+        department: booking.branch,
+        year: booking.year,
+        section: booking.section,
+        title: "Classroom Booked",
+        message: `${booking.section} has booked ${booking.roomNumber} at ${booking.slot} on ${booking.date}.`,
+        bookingId: booking._id,
+      });
+    } catch (e) {
+      console.warn("Notification(approveBooking) warn:", e?.message || e);
+    }
+
     return res.json({ success: true, message: "Approved", booking });
   } catch (err) {
     console.error("approveBooking:", err);
@@ -279,6 +331,19 @@ export const rejectBooking = async (req, res) => {
 
     const booking = await Booking.findByIdAndUpdate(id, { status: "rejected" }, { new: true });
     if (!booking) return res.status(404).json({ success: false, message: "not found" });
+
+    // 🔔 Notify faculty on rejection
+    try {
+      await Notification.create({
+        scope: "faculty",
+        facultyEmail: (booking.facultyEmail || booking.requestedBy || "").toLowerCase(),
+        title: "Booking Rejected",
+        message: `${booking.roomNumber} on ${booking.date} at ${booking.slot} was rejected.`,
+        bookingId: booking._id,
+      });
+    } catch (e) {
+      console.warn("Notification(rejectBooking) warn:", e?.message || e);
+    }
 
     return res.json({ success: true, message: "Rejected", booking });
   } catch (err) {
@@ -333,7 +398,7 @@ export const getSectionBookings = async (req, res) => {
     let { branch, year, section, from, to } = req.query;
 
     // Normalize inputs (but do NOT break existing saved values)
-    const y = norm(year).replace(/\D/g, "");                 // "3"
+    const y = norm(year).replace(/\D/g, ""); // "3"
     const secLetter = norm(section).toUpperCase().replace(/^\d+/, ""); // "A"
     const secVariants = [...new Set([secLetter, y && secLetter ? `${y}${secLetter}` : null].filter(Boolean))]; // ["A","3A"]
 

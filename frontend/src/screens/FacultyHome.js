@@ -2,8 +2,21 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import LogoutButton from "../components/LogoutButton";
+import { useEffect } from "react";
+import io from "socket.io-client";
 
 export default function FacultyHome({ navigation }) {
+  useEffect(() => {
+  const socket = io("http://10.183.195.64:5000", { transports: ["websocket"] });
+
+  socket.on("notification", (data) => {
+    console.log("🔔 Live Notification:", data);
+    // We DO NOT auto navigate, we only refresh notifications screen next time user opens it
+  });
+
+  return () => socket.disconnect();
+}, []);
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Faculty Dashboard</Text>
@@ -26,7 +39,7 @@ export default function FacultyHome({ navigation }) {
       <TouchableOpacity style={styles.card} onPress={() => navigation.navigate("Staffrooms")}>
       <Text style={styles.cardText}>🏢 Staffroom Locations</Text> 
       </TouchableOpacity>
-      
+
 
       {/* ✅ Correct: Navigate to MyBookings */}
       <TouchableOpacity
@@ -37,7 +50,10 @@ export default function FacultyHome({ navigation }) {
 
       </TouchableOpacity>
 
-    
+    <TouchableOpacity onPress={() => navigation.navigate("FacultyNotifications")} style={styles.card}>
+        <Text style={styles.cardText}>🔔 Notifications</Text>
+      </TouchableOpacity> 
+
       <LogoutButton navigation={navigation} />
     </View>
   );
