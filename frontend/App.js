@@ -4,15 +4,18 @@ import "react-native-reanimated";
 import React, { useEffect } from "react";
 import { Alert, Platform } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
-import { io } from "socket.io-client";   // ✅ FIXED IMPORT
+import { io } from "socket.io-client";
 import AuthNavigator from "./src/navigation/AuthNavigator";
 import { getAuthData } from "./src/utils/storage";
 
-const SOCKET_URL = "http://10.183.195.64:5000";
+// 👉 Use localhost for now (same machine as backend)
+const SOCKET_URL =
+  Platform.OS === "web"
+    ? "http://localhost:5000"
+    : "10.94.56.64:5000"; // e.g. http://192.168.1.5:5000 for physical device
 
 export default function App() {
   useEffect(() => {
-    // ✅ Create socket connection once
     const socket = io(SOCKET_URL, {
       transports: ["websocket"],
       reconnection: true,
@@ -27,7 +30,6 @@ export default function App() {
         const auth = await getAuthData();
         const user = auth?.user || {};
 
-        // ✅ register client identity (no backend breakage)
         socket.emit("register", {
           email: user.email,
           role: user.role,
@@ -36,10 +38,11 @@ export default function App() {
           section: user.section,
           platform: Platform.OS,
         });
-      } catch {}
+      } catch (e) {
+        console.log("Socket register skipped (no auth yet)");
+      }
     });
 
-    // ✅ SHOW POPUP REAL-TIME
     socket.on("notification", (note) => {
       if (note?.title && note?.message) {
         Alert.alert(note.title, note.message);

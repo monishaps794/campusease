@@ -4,6 +4,7 @@ import Classroom from "../models/Classroom.js";
 import AllocationResult from "../models/AllocationResult.js";
 import User from "../models/User.js";
 import Notification from "../models/notification.js";
+import { io } from "../../server.js"; 
 
 /* -------------------------- Helpers -------------------------- */
 const norm = (s) => (s ? String(s).trim() : "");
@@ -123,16 +124,28 @@ export const createBookingRequest = async (req, res) => {
     });
 
     // 🔔 Notify admins about new request
-    try {
-      await Notification.create({
-        scope: "admin",
-        title: "New Booking Request",
-        message: `${facultyEmail} requested ${roomNumber} on ${date} at ${slot}.`,
-        bookingId: booking._id,
-      });
-    } catch (e) {
-      console.warn("Notification(createBookingRequest) warn:", e?.message || e);
-    }
+   // 🔔 Notify admins about new request
+try {
+  const note = await Notification.create({
+  scope: "student-section",
+  department: booking.branch || "Information Science",
+  year: String(booking.year),
+  section: booking.section,          // same as you used when creating the booking (e.g. "3A" / "5A")
+  title: "New Classroom Booking",
+  message: `${booking.roomNumber} on ${booking.date} at ${booking.slot} is booked for your section.`,
+  bookingId: booking._id,
+});
+
+  // ✅ Real-time push to all admins
+  io.emit("notification", {
+    role: "admin",
+    title: note.title,
+    message: note.message,
+  });
+} catch (e) {
+  console.warn("Notification(createBookingRequest) warn:", e?.message || e);
+}
+
 
     return res.json({ success: true, message: "Request submitted", booking });
   } catch (err) {
@@ -181,19 +194,30 @@ export const adminBook = async (req, res) => {
     });
 
     // 🔔 Notify section (students) immediately
-    try {
-      await Notification.create({
-        scope: "student-section",
-        department: branch,
-        year,
-        section,
-        title: "Classroom Booked",
-        message: `${section} has been allocated ${roomNumber} at ${slot} on ${date}.`,
-        bookingId: booking._id,
-      });
-    } catch (e) {
-      console.warn("Notification(adminBook) warn:", e?.message || e);
-    }
+    // 🔔 Notify section students immediately
+try {
+  const note = await Notification.create({
+    scope: "student-section",
+    department: branch,
+    year,
+    section,
+    title: "Classroom Booked",
+    message: `${section} has been allocated ${roomNumber} at ${slot} on ${date}.`,
+    bookingId: booking._id,
+  });
+
+  // ✅ Real-time push to students
+  io.emit("notification", {
+    role: "student",
+    department: branch,
+    year,
+    section,
+    title: note.title,
+    message: note.message,
+  });
+} catch (e) {
+  console.warn("Notification(adminBook) warn:", e?.message || e);
+}
 
     return res.json({ success: true, message: "Admin booking confirmed", booking });
   } catch (err) {
@@ -295,27 +319,47 @@ export const approveBooking = async (req, res) => {
     await booking.save();
 
     // 🔔 Notify faculty and section on approval
-    try {
-      await Notification.create({
-        scope: "faculty",
-        facultyEmail: (booking.facultyEmail || booking.requestedBy || "").toLowerCase(),
-        title: "Booking Approved",
-        message: `${booking.roomNumber} on ${booking.date} at ${booking.slot} was approved.`,
-        bookingId: booking._id,
-      });
+   try {
+  const facultyNote = await Notification.create({
+    scope: "faculty",
+    facultyEmail: (booking.facultyEmail || booking.requestedBy || "").toLowerCase(),
+    title: "Booking Approved",
+    message: `${booking.roomNumber} on ${booking.date} at ${booking.slot} was approved.`,
+    bookingId: booking._id,
+  });
 
-      await Notification.create({
-        scope: "student-section",
-        department: booking.branch,
-        year: booking.year,
-        section: booking.section,
-        title: "Classroom Booked",
-        message: `${booking.section} has booked ${booking.roomNumber} at ${booking.slot} on ${booking.date}.`,
-        bookingId: booking._id,
-      });
-    } catch (e) {
-      console.warn("Notification(approveBooking) warn:", e?.message || e);
-    }
+  // ✅ Real-time notify faculty
+  io.emit("notification", {
+    role: "faculty",
+    email: booking.facultyEmail,
+    title: facultyNote.title,
+    message: facultyNote.message,
+  });
+
+  const studentNote = await Notification.create({
+    scope: "student-section",
+    department: booking.branch,
+    year: booking.year,
+    section: booking.section,
+    title: "Classroom Booked",
+    message: `${booking.section} has booked ${booking.roomNumber} at ${booking.slot} on ${booking.date}.`,
+    bookingId: booking._id,
+  });
+
+  // ✅ Real-time notify students
+  io.emit("notification", {
+    role: "student",
+    department: booking.branch,
+    year: booking.year,
+    section: booking.section,
+    title: studentNote.title,
+    message: studentNote.message,
+  });
+
+} catch (e) {
+  console.warn("Notification(approveBooking) warn:", e?.message || e);
+}
+
 
     return res.json({ success: true, message: "Approved", booking });
   } catch (err) {

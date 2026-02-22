@@ -33,18 +33,14 @@ const server = createServer(app);
 // ✅ Attach Socket.io (exported for models/controllers)
 export const io = new Server(server, {
   cors: {
-    origin: [
-      "http://localhost:19006",
-      "http://127.0.0.1:19006",
-      "http://localhost:8081",
-      "http://127.0.0.1:8081",
-      "http://10.183.195.64:8081",
-      "*",
-    ],
+    // echo back whatever origin is calling (works for Expo web, Postman, socket web tools, etc.)
+    origin: true,
     methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   },
+  // allow both polling + websocket handshakes
+  transports: ["polling", "websocket"],
 });
 
 // (Optional) track who connected (can be useful later)
@@ -64,15 +60,10 @@ io.on("connection", (socket) => {
   });
 });
 
+// ✅ Express CORS – mirror origin like socket.io
 app.use(
   cors({
-    origin: [
-      "http://localhost:19006",
-      "http://127.0.0.1:19006",
-      "http://localhost:8081",
-      "http://127.0.0.1:8081",
-      "http://10.183.195.64:8081",
-    ],
+    origin: true, // reflect request origin
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,

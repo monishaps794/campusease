@@ -1,7 +1,12 @@
 // frontend/src/api.js
 import axios from "axios";
+import { Platform } from "react-native";
 
-const API_BASE = "http://10.183.195.64:5000";
+// 🔗 Backend base URL (same logic as LoginScreen)
+const API_BASE =
+  Platform.OS === "web"
+    ? "http://localhost:5000"
+    : "http://10.183.195.64:5000"; // change IP if your PC LAN IP is different
 
 // Axios client
 const client = axios.create({
@@ -15,7 +20,7 @@ client.interceptors.request.use((config) => {
   try {
     let token = null;
 
-    // Web (localStorage) — we store the whole payload at this key
+    // Web (localStorage)
     if (typeof localStorage !== "undefined") {
       const stored = localStorage.getItem("@campusease_user");
       if (stored) {
@@ -80,10 +85,18 @@ const api = {
     handle(client.delete(`/bookings/cancel/${encodeURIComponent(id)}`)),
 
   getBookingDetails: ({ roomNumber, date, slot }) =>
-    handle(client.get("/bookings/details", { params: { roomNumber, date, slot } })),
+    handle(
+      client.get("/bookings/details", {
+        params: { roomNumber, date, slot },
+      })
+    ),
 
   cancelByTriplet: ({ roomNumber, date, slot }) =>
-    handle(client.delete(`/bookings/cancel-by`, { params: { roomNumber, date, slot } })),
+    handle(
+      client.delete(`/bookings/cancel-by`, {
+        params: { roomNumber, date, slot },
+      })
+    ),
 
   // ✅ used by StudentBookingsScreen (must exist)
   getSectionBookings: ({ branch, year, section, from, to }) =>
@@ -105,9 +118,11 @@ const api = {
   getTimetableMerged: (branch, year, section, day) =>
     handle(
       client.get(
-        `/timetable/merged/${encodeURIComponent(branch)}/${encodeURIComponent(
-          year
-        )}/${encodeURIComponent(section)}/${encodeURIComponent(day)}`
+        `/timetable/merged/${encodeURIComponent(
+          branch
+        )}/${encodeURIComponent(year)}/${encodeURIComponent(
+          section
+        )}/${encodeURIComponent(day)}`
       )
     ),
 
@@ -118,14 +133,13 @@ const api = {
   getSectionTimetable: (branch, year, section) =>
     handle(
       client.get(
-        `/timetable/section/${encodeURIComponent(branch)}/${encodeURIComponent(
-          year
-        )}/${encodeURIComponent(section)}`
+        `/timetable/section/${encodeURIComponent(
+          branch
+        )}/${encodeURIComponent(year)}/${encodeURIComponent(section)}`
       )
     ),
 
   /* --------------------- Staffrooms ------------------- */
-  // ✅ used by StaffroomScreen (must exist)
   getStaffrooms: () => handle(client.get("/staffrooms/all")),
 
   /* ----------------------- Auth ----------------------- */
@@ -141,7 +155,9 @@ const api = {
       })
     ),
   getFacultyNotifications: (email) =>
-    handle(client.get(`/notifications/faculty/${encodeURIComponent(email)}`)),
+    handle(
+      client.get(`/notifications/faculty/${encodeURIComponent(email)}`)
+    ),
   getAdminNotifications: () => handle(client.get("/notifications/admin")),
 };
 

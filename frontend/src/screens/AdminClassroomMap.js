@@ -23,7 +23,7 @@ const SLOTS = [
   "2:00-3:00",
   "3:00-4:00",
 ];
-const SECTIONS = ["3A","3B","3C","5A","5B","5C","7A","7B","7C"];
+const SECTIONS = ["3A", "3B", "3C", "5A", "5B", "5C", "7A", "7B", "7C"];
 
 const todayISO = () => new Date().toISOString().split("T")[0];
 const isoFromAny = (s) => {
@@ -49,26 +49,51 @@ export default function AdminClassroomMap() {
   const [bookReason, setBookReason] = useState("");
   const [roomBooking, setRoomBooking] = useState(null);
 
+  // 🔍 Load booking details for the selected cell
   useEffect(() => {
-  const loadBooking = async () => {
-    if (!selected?.roomNumber || !selected?.slot) {
-      setRoomBooking(null);
-      return;
-    }
-    try {
-      const det = await api.getBookingDetails({
-        roomNumber: selected.roomNumber,
-        date,
-        slot: selected.slot,
-      });
-      setRoomBooking(det?.booking || null);
-    } catch {
-      setRoomBooking(null);
-    }
-  };
+    const loadBooking = async () => {
+      if (!selected?.roomNumber || !selected?.slot) {
+        setRoomBooking(null);
+        return;
+      }
+      try {
+        const det = await api.getBookingDetails({
+          roomNumber: selected.roomNumber,
+          date,
+          slot: selected.slot,
+        });
 
-  loadBooking();
-}, [selected, date]);
+        // det is the "data" from axios (because of handle())
+        if (!det || det.success === false) {
+          setRoomBooking(null);
+          return;
+        }
+
+        // Try different shapes defensively
+        const booking =
+          det.booking ||
+          det.bookingDetails ||
+          det.result ||
+          (det.success && det.data) ||
+          null;
+
+        // If backend just returns the booking object directly
+        const finalBooking =
+          booking && typeof booking === "object" && (booking.roomNumber || booking.roomId)
+            ? booking
+            : (det.roomNumber || det.roomId)
+            ? det
+            : null;
+
+        setRoomBooking(finalBooking);
+      } catch (e) {
+        console.log("loadBooking error:", e);
+        setRoomBooking(null);
+      }
+    };
+
+    loadBooking();
+  }, [selected, date]);
 
   useEffect(() => {
     (async () => {
@@ -81,7 +106,7 @@ export default function AdminClassroomMap() {
           type: c.type || "Lecture Hall",
           capacity: c.capacity || 60,
         }));
-        normalized.sort((a,b) => {
+        normalized.sort((a, b) => {
           const al = a.roomNumber.includes("LAB") ? 1 : 0;
           const bl = b.roomNumber.includes("LAB") ? 1 : 0;
           if (al !== bl) return al - bl;
@@ -133,6 +158,7 @@ export default function AdminClassroomMap() {
     if ((m.available || []).some((r) => r?.roomNumber === roomNumber)) return "FREE";
     return "UNKNOWN";
   };
+
   const cellStyle = (slot, roomNumber) => {
     const st = statusFor(slot, roomNumber);
     if (st === "7C") return [styles.cell, styles.cell7c];
@@ -140,6 +166,7 @@ export default function AdminClassroomMap() {
     if (st === "FREE") return [styles.cell, styles.cellFree];
     return [styles.cell, styles.cellUnknown];
   };
+
   const cellLabel = (slot, roomNumber) => {
     const st = statusFor(slot, roomNumber);
     if (st === "7C") return "7C";
@@ -173,25 +200,24 @@ export default function AdminClassroomMap() {
     );
   };
 
- const openCell = (roomNumber, slot) => {
-  setSelected({ roomNumber, slot });
-  setBookSection(SECTIONS[0]);
-  setBookReason("");
-  setRoomSchedule(scheduleForRoom(roomNumber));
-  setRoomModalOpen(true);
-};
-
-
-
+  const openCell = (roomNumber, slot) => {
+    setSelected({ roomNumber, slot });
+    setBookSection(SECTIONS[0]);
+    setBookReason("");
+    setRoomSchedule(scheduleForRoom(roomNumber));
+    setRoomModalOpen(true);
+  };
 
   const canBook = useMemo(() => {
     if (!selected) return false;
     return statusFor(selected.slot, selected.roomNumber) === "FREE";
   }, [selected, matrix]);
+
   const canOverride = useMemo(() => {
     if (!selected) return false;
     return statusFor(selected.slot, selected.roomNumber) === "BOOKED";
   }, [selected, matrix]);
+
   const is7C = useMemo(() => {
     if (!selected) return false;
     return statusFor(selected.slot, selected.roomNumber) === "7C";
@@ -210,22 +236,24 @@ export default function AdminClassroomMap() {
         reason: (bookReason || "").trim() || `Admin booking (${bookSection})`,
         ...(override ? { override: true } : {}),
       };
-      const res = override ? await api.adminOverrideBook(payload) : await api.adminBook(payload);
+      const res = override
+        ? await api.adminOverrideBook(payload)
+        : await api.adminBook(payload);
 
-      Alert.alert("Success", res?.message || (override ? "Overridden & booked ✅" : "Booked ✅"));
+      Alert.alert(
+        "Success",
+        res?.message || (override ? "Overridden & booked ✅" : "Booked ✅")
+      );
       await loadMatrixForDate();
       setRoomModalOpen(false);
     } catch (e) {
-      const mustOfferOverride = e?.status === 409 || /already/i.test(e?.message || "");
+      const mustOfferOverride =
+        e?.status === 409 || /already/i.test(e?.message || "");
       if (mustOfferOverride) {
-        Alert.alert(
-          "Room already booked",
-          "Do you want to override the existing booking?",
-          [
-            { text: "No" },
-            { text: "Override", onPress: () => submitBook(true) },
-          ]
-        );
+        Alert.alert("Room already booked", "Do you want to override the existing booking?", [
+          { text: "No" },
+          { text: "Override", onPress: () => submitBook(true) },
+        ]);
       } else {
         Alert.alert("Error", e?.message || "Failed to book");
       }
@@ -234,7 +262,7 @@ export default function AdminClassroomMap() {
 
   if (loading) {
     return (
-      <View style={{ flex:1, justifyContent:"center", alignItems:"center" }}>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator size="large" />
         <Text>Loading classroom data…</Text>
       </View>
@@ -259,17 +287,35 @@ export default function AdminClassroomMap() {
           ) : (
             <Text style={{ marginBottom: 8 }}>{date}</Text>
           )}
-          <TouchableOpacity style={[styles.smallBtn, { marginLeft: 8 }]} onPress={loadMatrixForDate}>
+          <TouchableOpacity
+            style={[styles.smallBtn, { marginLeft: 8 }]}
+            onPress={loadMatrixForDate}
+          >
             <Text style={styles.smallBtnText}>Refresh</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.legend}>
-          <View style={[styles.legendItem, { backgroundColor: "#D1FAE5", borderColor: "#10B981" }]} />
+          <View
+            style={[
+              styles.legendItem,
+              { backgroundColor: "#D1FAE5", borderColor: "#10B981" },
+            ]}
+          />
           <Text>Free</Text>
-          <View style={[styles.legendItem, { backgroundColor: "#FEE2E2", borderColor: "#EF4444", marginLeft: 12 }]} />
+          <View
+            style={[
+              styles.legendItem,
+              { backgroundColor: "#FEE2E2", borderColor: "#EF4444", marginLeft: 12 },
+            ]}
+          />
           <Text>Booked</Text>
-          <View style={[styles.legendItem, { backgroundColor: "#EDE9FE", borderColor: "#7C3AED", marginLeft: 12 }]} />
+          <View
+            style={[
+              styles.legendItem,
+              { backgroundColor: "#EDE9FE", borderColor: "#7C3AED", marginLeft: 12 },
+            ]}
+          />
           <Text>7C Reserved</Text>
         </View>
       </View>
@@ -280,7 +326,9 @@ export default function AdminClassroomMap() {
           <ScrollView style={{ flex: 1 }} nestedScrollEnabled>
             {/* Header row */}
             <View style={styles.headerRow}>
-              <View style={[styles.headerCell, { width: 130 }]}><Text style={styles.headerText}>Room ↓ / Slot →</Text></View>
+              <View style={[styles.headerCell, { width: 130 }]}>
+                <Text style={styles.headerText}>Room ↓ / Slot →</Text>
+              </View>
               {SLOTS.map((s) => (
                 <View key={s} style={[styles.headerCell, { width: 150 }]}>
                   <Text style={styles.headerText}>{s}</Text>
@@ -292,8 +340,8 @@ export default function AdminClassroomMap() {
             {rooms.map((r) => (
               <View key={r.roomNumber} style={styles.row}>
                 <View style={[styles.roomCol, { width: 130 }]}>
-                  <Text style={{ fontWeight:"700" }}>{r.roomNumber}</Text>
-                  <Text style={{ fontSize: 11, color:"#6b7280" }}>{r.type}</Text>
+                  <Text style={{ fontWeight: "700" }}>{r.roomNumber}</Text>
+                  <Text style={{ fontSize: 11, color: "#6b7280" }}>{r.type}</Text>
                 </View>
                 {SLOTS.map((s) => (
                   <TouchableOpacity
@@ -302,7 +350,9 @@ export default function AdminClassroomMap() {
                     style={[{ width: 150 }, ...cellStyle(s, r.roomNumber)]}
                     title={`${r.roomNumber} — ${s}`}
                   >
-                    <Text style={{ fontSize: 12, fontWeight: "700" }}>{cellLabel(s, r.roomNumber)}</Text>
+                    <Text style={{ fontSize: 12, fontWeight: "700" }}>
+                      {cellLabel(s, r.roomNumber)}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -320,59 +370,82 @@ export default function AdminClassroomMap() {
       >
         <View style={styles.modalBackdrop}>
           <View style={styles.modalBox}>
-            <Text style={{ fontSize:18, fontWeight:"bold" }}>
+            <Text style={{ fontSize: 18, fontWeight: "bold" }}>
               {selected?.roomNumber} — {date} — {selected?.slot}
             </Text>
 
-            <Text style={{ marginTop:10, fontWeight:"700" }}>Scheduled Classes (from allocation)</Text>
+            <Text style={{ marginTop: 10, fontWeight: "700" }}>
+              Scheduled Classes (from allocation)
+            </Text>
             <ScrollView style={{ maxHeight: 200 }}>
               {roomSchedule.length ? (
                 roomSchedule.map((s, i) => (
-                  <View key={`${s.day}-${s.time}-${i}`} style={{ borderBottomWidth:1, borderColor:"#eee", paddingVertical:6 }}>
-                    <Text>{s.day} — {s.time} — {s.subject || "(no subject)"}</Text>
-                    <Text style={{ fontSize:12, color:"#555" }}>{s.section}{s.manual ? " (manual)" : ""}</Text>
+                  <View
+                    key={`${s.day}-${s.time}-${i}`}
+                    style={{ borderBottomWidth: 1, borderColor: "#eee", paddingVertical: 6 }}
+                  >
+                    <Text>
+                      {s.day} — {s.time} — {s.subject || "(no subject)"}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: "#555" }}>
+                      {s.section}
+                      {s.manual ? " (manual)" : ""}
+                    </Text>
                   </View>
                 ))
               ) : (
-                <Text style={{ color:"#6b7280" }}>No scheduled classes in allocation.</Text>
+                <Text style={{ color: "#6b7280" }}>No scheduled classes in allocation.</Text>
               )}
             </ScrollView>
-              <Text style={{ marginTop:10, fontWeight:"700" }}>Booking Details</Text>
-{roomBooking ? (
-  <View style={{ paddingVertical:6, borderBottomWidth:1, borderColor:"#eee" }}>
-    <Text>Status: {roomBooking.status}</Text>
-    <Text>By: {roomBooking.requestedBy || "—"}</Text>
-    <Text>Reason: {roomBooking.reason || "—"}</Text>
 
-    <TouchableOpacity
-      style={[styles.smallBtn, { backgroundColor:"#DC2626", marginTop:6 }]}
-      onPress={async () => {
-        await api.cancelByTriplet({ roomNumber: selected.roomNumber, date, slot: selected.slot });
-setRoomBooking(null); // ✅ Clear UI
+            <Text style={{ marginTop: 10, fontWeight: "700" }}>Booking Details</Text>
+            {roomBooking ? (
+              <View style={{ paddingVertical: 6, borderBottomWidth: 1, borderColor: "#eee" }}>
+                <Text>Status: {roomBooking.status}</Text>
+                <Text>By: {roomBooking.requestedBy || "—"}</Text>
+                <Text>Reason: {roomBooking.reason || "—"}</Text>
 
-        await loadMatrixForDate();
-        setRoomModalOpen(false);
-      }}
-    >
-      <Text style={styles.smallBtnText}>Cancel Booking</Text>
-    </TouchableOpacity>
-  </View>
-) : (
-  <Text style={{ color:"#6b7280" }}>No booking for this slot.</Text>
-)}
+                <TouchableOpacity
+                  style={[styles.smallBtn, { backgroundColor: "#DC2626", marginTop: 6 }]}
+                  onPress={async () => {
+                    await api.cancelByTriplet({
+                      roomNumber: selected.roomNumber,
+                      date,
+                      slot: selected.slot,
+                    });
+                    setRoomBooking(null); // ✅ Clear UI
+                    await loadMatrixForDate();
+                    setRoomModalOpen(false);
+                  }}
+                >
+                  <Text style={styles.smallBtnText}>Cancel Booking</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <Text style={{ color: "#6b7280" }}>No booking for this slot.</Text>
+            )}
 
-            <View style={{ marginTop:12, borderWidth:1, borderColor:"#e5e7eb", borderRadius:8, padding:8 }}>
-              <Text style={{ fontWeight:"600", marginBottom:6 }}>Admin Book This Room</Text>
+            <View
+              style={{
+                marginTop: 12,
+                borderWidth: 1,
+                borderColor: "#e5e7eb",
+                borderRadius: 8,
+                padding: 8,
+              }}
+            >
+              <Text style={{ fontWeight: "600", marginBottom: 6 }}>Admin Book This Room</Text>
 
               <Text style={{ marginBottom: 4 }}>Section</Text>
               <View style={styles.pickerBox}>
                 <Picker selectedValue={bookSection} onValueChange={(v) => setBookSection(v)}>
-                  {SECTIONS.map((s) => <Picker.Item key={s} label={s} value={s} />)}
+                  {SECTIONS.map((s) => (
+                    <Picker.Item key={s} label={s} value={s} />
+                  ))}
                 </Picker>
               </View>
 
               <Text style={{ marginTop: 8, marginBottom: 4 }}>Reason</Text>
-              {/* ✅ Real TextInput (multiline) so you can type on web */}
               <TextInput
                 value={bookReason}
                 onChangeText={setBookReason}
@@ -381,57 +454,73 @@ setRoomBooking(null); // ✅ Clear UI
                 multiline
               />
 
-              <View style={{ flexDirection:"row", flexWrap:"wrap", gap:8, marginTop:10 }}>
-                <TouchableOpacity style={[styles.smallBtn, { backgroundColor:"#6B7280" }]} onPress={() => setRoomModalOpen(false)}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  flexWrap: "wrap",
+                  gap: 8,
+                  marginTop: 10,
+                }}
+              >
+                <TouchableOpacity
+                  style={[styles.smallBtn, { backgroundColor: "#6B7280" }]}
+                  onPress={() => setRoomModalOpen(false)}
+                >
                   <Text style={styles.smallBtnText}>Close</Text>
                 </TouchableOpacity>
 
                 {canBook && (
-                  <TouchableOpacity style={[styles.smallBtn, { backgroundColor:"#10B981" }]} onPress={() => submitBook(false)}>
+                  <TouchableOpacity
+                    style={[styles.smallBtn, { backgroundColor: "#10B981" }]}
+                    onPress={() => submitBook(false)}
+                  >
                     <Text style={styles.smallBtnText}>Book</Text>
                   </TouchableOpacity>
                 )}
 
                 {canOverride && (
-  <>
-    <TouchableOpacity
-      style={[styles.smallBtn, { backgroundColor:"#EF4444" }]}
-      onPress={() => submitBook(true)}
-    >
-      <Text style={styles.smallBtnText}>Override & Book</Text>
-    </TouchableOpacity>
+                  <>
+                    <TouchableOpacity
+                      style={[styles.smallBtn, { backgroundColor: "#EF4444" }]}
+                      onPress={() => submitBook(true)}
+                    >
+                      <Text style={styles.smallBtnText}>Override & Book</Text>
+                    </TouchableOpacity>
 
-    <TouchableOpacity
-      style={[styles.smallBtn, { backgroundColor:"#6B7280" }]}
-      onPress={async () => {
-        try {
-          await api.cancelByTriplet({
-            roomNumber: selected.roomNumber,
-            date,
-            slot: selected.slot,
-          });
-          Alert.alert("Cancelled", "Booking cancelled.");
-          await loadMatrixForDate(); // refresh grid
-          setRoomModalOpen(false);
-        } catch (e) {
-          Alert.alert("Error", e?.message || "Cancel failed");
-        }
-      }}
-    >
-      <Text style={styles.smallBtnText}>Cancel</Text>
-    </TouchableOpacity>
-  </>
-)}
-
+                    <TouchableOpacity
+                      style={[styles.smallBtn, { backgroundColor: "#6B7280" }]}
+                      onPress={async () => {
+                        try {
+                          await api.cancelByTriplet({
+                            roomNumber: selected.roomNumber,
+                            date,
+                            slot: selected.slot,
+                          });
+                          Alert.alert("Cancelled", "Booking cancelled.");
+                          await loadMatrixForDate();
+                          setRoomModalOpen(false);
+                        } catch (e) {
+                          Alert.alert("Error", e?.message || "Cancel failed");
+                        }
+                      }}
+                    >
+                      <Text style={styles.smallBtnText}>Cancel</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
 
                 {is7C && (
-                  <View style={[styles.smallBtn, { backgroundColor:"#7C3AED", opacity:0.85 }]}>
+                  <View
+                    style={[
+                      styles.smallBtn,
+                      { backgroundColor: "#7C3AED", opacity: 0.85 },
+                    ]}
+                  >
                     <Text style={styles.smallBtnText}>7C Reserved</Text>
                   </View>
                 )}
               </View>
             </View>
-
           </View>
         </View>
       </Modal>
@@ -443,7 +532,12 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#f8f9fa" },
   topBar: { paddingHorizontal: 16, paddingTop: 12 },
   title: { fontSize: 22, fontWeight: "bold", textAlign: "center", marginBottom: 12 },
-  controls: { flexDirection: "row", alignItems: "center", marginBottom: 10, flexWrap: "wrap" },
+  controls: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+    flexWrap: "wrap",
+  },
   label: { fontWeight: "600", marginRight: 8 },
   htmlDate: {
     padding: 10,
@@ -453,18 +547,33 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     width: 200,
   },
-  legend: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 12, paddingHorizontal: 2 },
+  legend: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 12,
+    paddingHorizontal: 2,
+  },
   legendItem: { width: 20, height: 20, borderWidth: 2, borderRadius: 5 },
 
-  // ⬇️ ensure vertical scroll to ISE108/LAB
   gridWrap: { flex: 1, padding: 8, paddingBottom: 16, maxHeight: "80vh" },
 
   headerRow: { flexDirection: "row" },
-  headerCell: { padding: 10, backgroundColor: "#111827", borderRightWidth: 1, borderRightColor: "#374151" },
+  headerCell: {
+    padding: 10,
+    backgroundColor: "#111827",
+    borderRightWidth: 1,
+    borderRightColor: "#374151",
+  },
   headerText: { color: "#fff", fontWeight: "700", fontSize: 12 },
 
   row: { flexDirection: "row", alignItems: "stretch" },
-  roomCol: { padding: 10, backgroundColor: "#E5E7EB", borderRightWidth: 1, borderRightColor: "#d1d5db" },
+  roomCol: {
+    padding: 10,
+    backgroundColor: "#E5E7EB",
+    borderRightWidth: 1,
+    borderRightColor: "#d1d5db",
+  },
 
   cell: {
     height: 64,
@@ -480,22 +589,43 @@ const styles = StyleSheet.create({
   cell7c: { backgroundColor: "#EDE9FE", borderColor: "#7C3AED" },
   cellUnknown: { backgroundColor: "#F3F4F6", borderColor: "#9CA3AF" },
 
-  modalBackdrop: { flex:1, backgroundColor:"rgba(0,0,0,0.5)", justifyContent:"center", alignItems:"center" },
-  modalBox: { width: "92%", maxHeight:"88%", backgroundColor:"#fff", borderRadius:10, padding:14 },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalBox: {
+    width: "92%",
+    maxHeight: "88%",
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    padding: 14,
+  },
 
-  pickerBox: { borderWidth:1, borderColor:"#ccc", borderRadius:8, overflow:"hidden", backgroundColor:"#fff" },
+  pickerBox: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    overflow: "hidden",
+    backgroundColor: "#fff",
+  },
 
   input: {
-    padding:10,
-    borderWidth:1,
-    borderColor:"#ccc",
-    borderRadius:8,
-    backgroundColor:"#fff",
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    backgroundColor: "#fff",
     minHeight: 44,
-    // helps web text focus/typing
     outlineWidth: 1,
     outlineColor: "#999",
   },
-  smallBtn: { paddingVertical:10, paddingHorizontal:14, borderRadius:8, backgroundColor:"#2563EB" },
-  smallBtnText: { color:"#fff", fontWeight:"700" },
+  smallBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    backgroundColor: "#2563EB",
+  },
+  smallBtnText: { color: "#fff", fontWeight: "700" },
 });

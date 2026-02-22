@@ -1,3 +1,4 @@
+// backend/src/routes/notification.js
 import express from "express";
 import Notification from "../models/notification.js";
 
@@ -16,22 +17,29 @@ router.get("/", (_req, res) => {
  */
 router.get("/student", async (req, res) => {
   try {
-    const department = (req.query.department || req.query.branch || "").toString();
+    const departmentRaw = (req.query.department || req.query.branch || "").toString();
     const year = (req.query.year || "").toString();
     const section = (req.query.section || "").toString().toUpperCase();
 
-    if (!department || !year || !section) {
-      return res.status(400).json({ success: false, message: "department, year, section required" });
+    if (!year || !section) {
+      return res
+        .status(400)
+        .json({ success: false, message: "year and section are required" });
     }
 
-    const items = await Notification.find({
+    const query = {
       scope: "student-section",
-      department,
       year,
       section,
-    })
-      .sort({ createdAt: -1 })
-      .lean();
+    };
+
+    // department is optional & matched case-insensitively
+    if (departmentRaw) {
+      const escaped = departmentRaw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      query.department = { $regex: new RegExp(escaped, "i") };
+    }
+
+    const items = await Notification.find(query).sort({ createdAt: -1 }).lean();
 
     return res.json({ success: true, notifications: items });
   } catch (e) {
@@ -47,7 +55,8 @@ router.get("/student", async (req, res) => {
 router.get("/faculty/:email", async (req, res) => {
   try {
     const email = (req.params.email || "").toLowerCase();
-    if (!email) return res.status(400).json({ success: false, message: "email required" });
+    if (!email)
+      return res.status(400).json({ success: false, message: "email required" });
 
     const items = await Notification.find({
       scope: "faculty",

@@ -1,6 +1,21 @@
+// frontend/src/screens/LoginScreen.js
 import React, { useState } from "react";
-import { View, Text, TextInput, Button, Alert, StyleSheet, Platform } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  Alert,
+  StyleSheet,
+  Platform,
+} from "react-native";
 import axios from "axios";
+
+// 🔗 Backend base URL (web uses localhost, device uses your LAN IP)
+const BASE_URL =
+  Platform.OS === "web"
+    ? "http://localhost:5000"
+    : "http://10.183.195.64:5000"; // change IP if your PC LAN IP is different
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
@@ -14,17 +29,25 @@ export default function LoginScreen({ navigation }) {
 
     try {
       setLoading(true);
-      const res = await axios.post("http://10.183.195.64:5000/auth/request-otp", { email });
+
+      const res = await axios.post(`${BASE_URL}/auth/request-otp`, {
+        email,
+      });
 
       if (res.data.success) {
         Alert.alert("✅ OTP Sent", `OTP sent to ${email}`);
-        navigation.navigate("OTPVerify", { email: email.toLowerCase().trim() });
+        navigation.navigate("OTPVerify", {
+          email: email.toLowerCase().trim(),
+        });
       } else {
         Alert.alert("Error", res.data.message || "Failed to send OTP");
       }
     } catch (error) {
       console.error("OTP Request Error:", error.response?.data || error.message);
-      Alert.alert("Error", error.response?.data?.message || "Failed to send OTP");
+      Alert.alert(
+        "Error",
+        error.response?.data?.message || "Failed to send OTP"
+      );
     } finally {
       setLoading(false);
     }
@@ -44,18 +67,43 @@ export default function LoginScreen({ navigation }) {
       />
 
       <View style={styles.buttonWrapper}>
-        <Button title={loading ? "Sending..." : "Get OTP"} onPress={requestOtp} disabled={loading} />
+        <Button
+          title={loading ? "Sending..." : "Get OTP"}
+          onPress={requestOtp}
+          disabled={loading}
+        />
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", justifyContent: "center", padding: 20 },
-  title: { fontSize: 22, fontWeight: "bold", marginBottom: 20, textAlign: "center" },
-  input: {
-    borderWidth: 1, borderColor: "#ccc", padding: 10, borderRadius: 6, marginBottom: 15,
-    ...Platform.select({ web: { pointerEvents: "auto" } }),
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    padding: 20,
   },
-  buttonWrapper: { ...Platform.select({ web: { pointerEvents: "auto" } }) },
+  title: {
+    fontSize: 22,
+    fontWeight: "bold",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    padding: 10,
+    borderRadius: 6,
+    marginBottom: 15,
+    // ✅ for web, pointerEvents must live inside style (this is fine)
+    ...Platform.select({
+      web: { pointerEvents: "auto" },
+    }),
+  },
+  buttonWrapper: {
+    ...Platform.select({
+      web: { pointerEvents: "auto" },
+    }),
+  },
 });

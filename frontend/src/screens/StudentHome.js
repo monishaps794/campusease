@@ -42,11 +42,7 @@ export default function StudentHome({ navigation }) {
         <Text style={styles.cardText}>🏢 Staffroom Locations</Text>
       </TouchableOpacity>
 
-       
-      {/* Notifications */}
-      <TouchableOpacity onPress={() => navigation.navigate("StudentNotifications")} style={styles.card}>
-      <Text style={styles.cardText}>🔔 Notifications</Text>
-      </TouchableOpacity>
+      
 
 
 

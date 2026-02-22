@@ -30,9 +30,7 @@ export default function AdminHome() {
         <Text style={styles.btnText}>⚙️ Run Auto Allocator</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => navigation.navigate("SavedAllocations")} style={styles.btnDark}>
-        <Text style={styles.btnText}>📁 View Saved Allocations</Text>
-      </TouchableOpacity>
+      
 
       <TouchableOpacity onPress={() => navigation.navigate("AdminTimetable")} style={styles.btnBlue}>
         <Text style={styles.btnText}>🗓️ Timetable Matrix View</Text>
